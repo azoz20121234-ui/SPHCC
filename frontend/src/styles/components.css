@@ -344,6 +344,38 @@
   font-size: .9rem;
 }
 
+.financial-roi {
+  display: grid;
+  gap: 14px;
+}
+
+.roi-horizons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.roi-chip {
+  border-radius: 14px;
+  background: #f7f7f9;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.roi-chip strong {
+  font-size: .95rem;
+}
+
+.roi-chip span {
+  color: var(--text-secondary);
+  font-size: .88rem;
+}
+
+.roi-table-wrap {
+  overflow-x: auto;
+}
+
 .season-curve {
   margin-top: 14px;
   display: grid;
@@ -430,6 +462,10 @@
   }
 
   .scenario-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .roi-horizons {
     grid-template-columns: 1fr;
   }
 }

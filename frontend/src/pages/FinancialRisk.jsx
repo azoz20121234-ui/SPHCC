@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import FinancialRoiPanel from '../components/FinancialRoiPanel.jsx';
+import { buildPlayerRoiRows, buildSessionRoiProjection } from '../engine/financialRoiEngine.js';
 import { useSimulation } from '../utils/SimulationContext.jsx';
 
 function round(value, digits = 1) {
@@ -6,7 +8,7 @@ function round(value, digits = 1) {
 }
 
 export default function FinancialRisk() {
-  const { selectedMetric } = useSimulation();
+  const { selectedMetric, players, metricsByPlayer } = useSimulation();
 
   const roi = useMemo(() => {
     if (!selectedMetric) return 0;
@@ -14,6 +16,15 @@ export default function FinancialRisk() {
     const subCost = Math.max(0, stayCost - selectedMetric.impact.financialExposure * 0.22);
     return stayCost - subCost;
   }, [selectedMetric]);
+
+  const playerRoiRows = useMemo(
+    () => buildPlayerRoiRows(players, metricsByPlayer),
+    [metricsByPlayer, players]
+  );
+  const sessionProjection = useMemo(
+    () => buildSessionRoiProjection(selectedMetric),
+    [selectedMetric]
+  );
 
   return (
     <section className="page fade-in">
@@ -61,6 +72,8 @@ export default function FinancialRisk() {
           </div>
         </article>
       </div>
+
+      <FinancialRoiPanel playerRows={playerRoiRows} sessionProjection={sessionProjection} />
     </section>
   );
 }
