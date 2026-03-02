@@ -1,0 +1,179 @@
+.app-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  direction: ltr;
+}
+
+.sidebar {
+  width: 260px;
+  padding: 40px 24px;
+  background: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  display: grid;
+  gap: 28px;
+}
+
+.sidebar-brand {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar-brand strong {
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+}
+
+.sidebar-brand span {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-item {
+  text-decoration: none;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 15px;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  position: relative;
+}
+
+.nav-item:hover {
+  background: rgba(0, 113, 227, 0.06);
+}
+
+.nav-item.active {
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--text-primary);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.main-content {
+  padding: 48px 64px;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.sidebar-toggle {
+  display: none;
+}
+
+.page {
+  display: grid;
+  gap: 28px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  letter-spacing: -0.02em;
+}
+
+.page-header p {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+}
+
+.page-grid {
+  display: grid;
+  gap: 32px;
+}
+
+.page-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.tactical-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 32px;
+}
+
+.financial-grid,
+.season-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.kpi-number {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1024px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-102%);
+    z-index: 50;
+    transition: transform .35s cubic-bezier(.25, .1, .25, 1);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 0 20px 20px 0;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 60;
+    border: 0;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    padding: 10px 13px;
+    font: inherit;
+  }
+
+  .main-content {
+    padding: 24px;
+  }
+
+  .overview-grid,
+  .financial-grid,
+  .season-grid,
+  .tactical-grid,
+  .page-grid {
+    grid-template-columns: 1fr;
+  }
+}

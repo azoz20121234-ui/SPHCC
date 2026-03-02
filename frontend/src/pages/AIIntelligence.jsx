@@ -2,13 +2,22 @@ export default function AIIntelligence() {
   return (
     <section className="page fade-in">
       <header className="page-header">
-        <h1>AI Intelligence</h1>
-        <p>Decision quality, confidence, and recommendation sensitivity.</p>
+        <h1>ذكاء القرار</h1>
+        <p>تحليل جودة التوصية، الثقة، وحساسية القرار المؤثرة على المباراة.</p>
       </header>
       <div className="page-grid cols-3">
-        <article className="card"><h3>Risk Breakdown</h3><p>Fatigue, neural, heat, hydration contribution.</p></article>
-        <article className="card"><h3>Confidence Score</h3><p>Model certainty in current intervention.</p></article>
-        <article className="card"><h3>Why This Recommendation?</h3><p>Human-readable tactical rationale.</p></article>
+        <article className="card">
+          <h3>تفكيك المخاطر</h3>
+          <p>نسبة مساهمة الإجهاد، الحمل العصبي، الحرارة، والترطيب.</p>
+        </article>
+        <article className="card">
+          <h3>درجة الثقة</h3>
+          <p>مستوى يقين النموذج في القرار المقترح الآن.</p>
+        </article>
+        <article className="card">
+          <h3>سبب التوصية</h3>
+          <p>تفسير تكتيكي واضح وقابل للتنفيذ من الطاقم الفني.</p>
+        </article>
       </div>
     </section>
   );

@@ -2,32 +2,32 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: '/overview', label: 'Overview' },
-  { to: '/tactical', label: 'Tactical Live' },
-  { to: '/ai', label: 'AI Intelligence' },
-  { to: '/financial', label: 'Financial Risk' },
-  { to: '/season', label: 'Season Forecast' },
-  { to: '/player/1', label: 'Players' }
+  { to: '/overview', label: 'نظرة عامة' },
+  { to: '/tactical', label: 'البث التكتيكي' },
+  { to: '/ai', label: 'ذكاء القرار' },
+  { to: '/financial', label: 'المخاطر المالية' },
+  { to: '/season', label: 'توقع الموسم' },
+  { to: '/player/1', label: 'ملف اللاعب' }
 ];
 
 export default function MainLayout({ children }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="app-layout" dir="rtl">
+    <div className="app-layout">
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <strong>SPHCC</strong>
-          <span>Sports Predictive Health Command Center</span>
+          <span>مركز القيادة التنبؤية للصحة الرياضية</span>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Primary">
+        <nav className="sidebar-nav" aria-label="التنقل الرئيسي">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
               onClick={() => setOpen(false)}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
             >
               {item.label}
             </NavLink>
@@ -39,7 +39,7 @@ export default function MainLayout({ children }) {
         {open ? 'إغلاق' : 'القائمة'}
       </button>
 
-      <main className="content-shell">{children}</main>
+      <main className="main-content" dir="rtl">{children}</main>
     </div>
   );
 }

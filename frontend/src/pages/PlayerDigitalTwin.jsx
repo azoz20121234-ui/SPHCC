@@ -6,13 +6,22 @@ export default function PlayerDigitalTwin() {
   return (
     <section className="page fade-in">
       <header className="page-header">
-        <h1>Player Digital Twin</h1>
-        <p>Personalized physiological model for player #{id}.</p>
+        <h1>التوأم الرقمي للاعب</h1>
+        <p>نموذج فسيولوجي شخصي للاعب رقم {id} لتوقع المخاطر والاستجابة.</p>
       </header>
       <div className="page-grid cols-3">
-        <article className="card"><h3>Baseline Health</h3><p>Resting and readiness baseline indicators.</p></article>
-        <article className="card"><h3>Recovery & Neural Sensitivity</h3><p>Adaptive model factors for load response.</p></article>
-        <article className="card"><h3>Heat Tolerance & Risk Model</h3><p>Personal thermal profile and dynamic risk curve.</p></article>
+        <article className="card">
+          <h3>الخط الصحي الأساسي</h3>
+          <p>مؤشرات الاستقرار الحيوي والجاهزية المرجعية.</p>
+        </article>
+        <article className="card">
+          <h3>سرعة التعافي والحساسية العصبية</h3>
+          <p>خصائص استجابة اللاعب للأحمال المرتفعة.</p>
+        </article>
+        <article className="card">
+          <h3>تحمل الحرارة ونموذج المخاطر</h3>
+          <p>بصمة حرارية فردية ومنحنى مخاطر ديناميكي.</p>
+        </article>
       </div>
     </section>
   );

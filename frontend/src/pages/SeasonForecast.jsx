@@ -2,13 +2,22 @@ export default function SeasonForecast() {
   return (
     <section className="page fade-in">
       <header className="page-header">
-        <h1>Season Forecast</h1>
-        <p>Seasonal fatigue peaks and rest windows from simulation.</p>
+        <h1>توقع الموسم</h1>
+        <p>تحليل ذروة الإجهاد ونوافذ الراحة الموصى بها عبر الموسم.</p>
       </header>
-      <div className="page-grid cols-3">
-        <article className="card"><h3>Fatigue Curve</h3><p>Trendline across upcoming fixtures.</p></article>
-        <article className="card"><h3>Injury Probability Map</h3><p>Per-match exposure estimate.</p></article>
-        <article className="card"><h3>Rest Windows</h3><p>Recommended recovery slots.</p></article>
+      <div className="season-grid">
+        <article className="card">
+          <h3>منحنى الإجهاد</h3>
+          <p>اتجاه الحمل البدني عبر المباريات القادمة.</p>
+        </article>
+        <article className="card">
+          <h3>خريطة احتمالية الإصابة</h3>
+          <p>تقدير التعرض لكل مباراة ضمن خطة الموسم.</p>
+        </article>
+        <article className="card">
+          <h3>نوافذ الراحة الموصى بها</h3>
+          <p>توقيتات الاستشفاء المثلى لتقليل المخاطر.</p>
+        </article>
       </div>
     </section>
   );

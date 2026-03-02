@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
-import MainLayout from './layouts/MainLayout.jsx';
+import MainLayout from './layout/MainLayout.jsx';
 import Overview from './pages/Overview.jsx';
 import TacticalLive from './pages/TacticalLive.jsx';
 import AIIntelligence from './pages/AIIntelligence.jsx';

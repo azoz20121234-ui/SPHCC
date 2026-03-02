@@ -2,13 +2,22 @@ export default function FinancialRisk() {
   return (
     <section className="page fade-in">
       <header className="page-header">
-        <h1>Financial Risk</h1>
-        <p>30-day exposure and substitution ROI simulation.</p>
+        <h1>المخاطر المالية</h1>
+        <p>توقع التعرض المالي خلال 30 يومًا وتأثير قرارات التبديل الوقائي.</p>
       </header>
-      <div className="page-grid cols-3">
-        <article className="card"><h3>30-Day Exposure</h3><p>SAR 127,000 projected at current trajectory.</p></article>
-        <article className="card"><h3>Injury Cost Projection</h3><p>Cost under stay vs substitute scenarios.</p></article>
-        <article className="card"><h3>ROI of Substitution</h3><p>Net preserved value by preventive intervention.</p></article>
+      <div className="financial-grid">
+        <article className="card">
+          <h3>تعرض 30 يوم</h3>
+          <p>127,000 ريال متوقعة على المسار الحالي للمخاطر.</p>
+        </article>
+        <article className="card">
+          <h3>توقع تكلفة الإصابة</h3>
+          <p>مقارنة التكلفة بين الاستمرار والتبديل الفوري.</p>
+        </article>
+        <article className="card">
+          <h3>العائد من التبديل</h3>
+          <p>القيمة المالية المحفوظة عند تفعيل التدخل الوقائي.</p>
+        </article>
       </div>
     </section>
   );

@@ -1,0 +1,65 @@
+.countdown-hero {
+  display: grid;
+  gap: 8px;
+}
+
+.countdown-number {
+  font-size: 72px;
+  font-weight: 300;
+  letter-spacing: -2px;
+  line-height: 1;
+}
+
+.countdown-number.normal {
+  color: var(--text-primary);
+}
+
+.countdown-number.warning {
+  color: var(--warning);
+}
+
+.countdown-number.danger {
+  color: var(--danger);
+}
+
+.risk-ring-wrap {
+  margin: 6px 0 10px;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.risk-ring {
+  width: 148px;
+  height: 148px;
+  transform: rotate(-90deg);
+}
+
+.risk-ring-base {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.08);
+  stroke-width: 12;
+}
+
+.risk-ring-progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: var(--transition);
+}
+
+.risk-ring-value {
+  position: absolute;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.metric-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 8px;
+}

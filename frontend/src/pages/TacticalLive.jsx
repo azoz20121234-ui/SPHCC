@@ -2,13 +2,22 @@ export default function TacticalLive() {
   return (
     <section className="page fade-in">
       <header className="page-header">
-        <h1>Tactical Live</h1>
-        <p>Real-time tactical simulation workspace.</p>
+        <h1>البث التكتيكي المباشر</h1>
+        <p>مساحة تشغيل لحظية لمتابعة قرارات المباراة الصحية.</p>
       </header>
-      <div className="page-grid cols-3">
-        <article className="card"><h3>Live Telemetry</h3><p>Streaming local simulation metrics.</p></article>
-        <article className="card"><h3>Timeline Projection</h3><p>10-minute risk trajectory.</p></article>
-        <article className="card"><h3>Heat Map</h3><p>Zone fatigue and neural pressure.</p></article>
+      <div className="tactical-grid">
+        <article className="card">
+          <h3>القياسات الحية</h3>
+          <p>تدفق لحظي لبيانات المحاكاة داخل المتصفح.</p>
+        </article>
+        <article className="card">
+          <h3>التوقع الزمني</h3>
+          <p>منحنى تصاعد المخاطر للعشر دقائق القادمة.</p>
+        </article>
+        <article className="card">
+          <h3>خريطة الإجهاد</h3>
+          <p>توزيع ضغط الإجهاد والحمل العصبي على مناطق الملعب.</p>
+        </article>
       </div>
     </section>
   );
