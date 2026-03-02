@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPHCC Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>SPHCC</h1>
+      <p>Smart Sports Physical Health Care Clinic</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Add Athlete</h2>
+        <form id="athleteForm">
+          <input type="text" id="name" placeholder="Athlete name" required />
+          <input type="text" id="sport" placeholder="Sport" required />
+          <input type="number" id="age" placeholder="Age" min="8" required />
+          <button type="submit">Add Athlete</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Athletes</h2>
+        <ul id="athletesList"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Schedule Appointment</h2>
+        <form id="appointmentForm">
+          <select id="athleteId" required></select>
+          <input type="datetime-local" id="date" required />
+          <textarea id="notes" placeholder="Session notes"></textarea>
+          <button type="submit">Create Appointment</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Appointments</h2>
+        <ul id="appointmentsList"></ul>
+      </section>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

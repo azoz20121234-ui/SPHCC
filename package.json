@@ -1,0 +1,12 @@
+{
+  "name": "sphcc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Sports Physical Health Care Clinic",
+  "scripts": {
+    "backend:install": "cd backend && npm install",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "frontend:serve": "cd frontend && python3 -m http.server 5500"
+  }
+}
