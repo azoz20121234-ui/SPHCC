@@ -3,17 +3,7 @@ import ExecutiveView from './components/ExecutiveView.jsx';
 import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
 import HeatMapComponent from './components/HeatMapComponent.jsx';
 import CountdownToBreakdown from './components/CountdownToBreakdown.jsx';
-
-const queryApiRoot = new URLSearchParams(window.location.search).get('api');
-if (queryApiRoot) {
-  localStorage.setItem('sphcc_api_root', queryApiRoot);
-}
-
-const API_ROOT =
-  queryApiRoot ||
-  localStorage.getItem('sphcc_api_root') ||
-  import.meta.env.VITE_API_ROOT ||
-  window.location.origin;
+import { startTelemetry } from './engine/telemetryEngine.js';
 
 const MODES = {
   executive: 'تنفيذي',
@@ -21,6 +11,12 @@ const MODES = {
   tactical: 'تكتيكي بالذكاء الاصطناعي',
   season: 'توقع الموسم'
 };
+
+const LOCAL_PLAYERS = [
+  { id: 1, name: 'خالد ناصر', sport: 'Football', position: 'Midfielder' },
+  { id: 2, name: 'فهد سالم', sport: 'Basketball', position: 'Guard' },
+  { id: 3, name: 'سامي العتيبي', sport: 'Football', position: 'Winger' }
+];
 
 function fmtNum(value) {
   return Number(value || 0).toFixed(1);
@@ -42,9 +38,228 @@ function compareLabel(list, key) {
   return list.find((item) => item.scenario === key || item.key === key)?.label || key;
 }
 
+function clamp(value, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeRisk(metric) {
+  const hydrationRisk = 100 - Number(metric.hydration);
+  const overallRisk = clamp(
+    metric.fatigue * 0.4 + metric.neuralLoad * 0.3 + metric.heatStress * 0.2 + hydrationRisk * 0.1
+  );
+  const injuryRisk = clamp(metric.fatigue * 0.43 + metric.neuralLoad * 0.35 + metric.heatStress * 0.22);
+  return {
+    fatigueScore: Number(metric.fatigue.toFixed(1)),
+    hydrationRisk: Number(hydrationRisk.toFixed(1)),
+    injuryRisk: Number(injuryRisk.toFixed(1)),
+    overallRisk: Number(overallRisk.toFixed(1))
+  };
+}
+
+function buildDecision(metric) {
+  const confidence = metric.overallRisk >= 70 ? 82 : metric.overallRisk >= 55 ? 68 : 91;
+  const bestDecision =
+    metric.overallRisk >= 70
+      ? {
+          key: 'substitute_now',
+          label: 'تبديل وقائي فوري',
+          description: 'تسارع المخاطر تجاوز حد الأمان ويحتاج تدخل فوري.'
+        }
+      : metric.overallRisk >= 55
+        ? {
+            key: 'monitor_3m',
+            label: 'مراقبة دقيقة 3 دقائق',
+            description: 'المخاطر متوسطة ويجب إعادة التقييم السريع قبل التصعيد.'
+          }
+        : {
+            key: 'safe_continue',
+            label: 'استمرار آمن',
+            description: 'اللاعب ضمن نطاق آمن مع متابعة مستمرة.'
+          };
+
+  return {
+    bestDecision,
+    confidence,
+    projectedRiskImpact: {
+      reduction: Number(clamp(95 - metric.overallRisk, 4, 32).toFixed(1)),
+      nextRisk: Number(clamp(metric.overallRisk - 14, 0, 100).toFixed(1))
+    },
+    projectedWinImpact: {
+      delta: Number((metric.overallRisk >= 70 ? -4.2 : 1.6).toFixed(1)),
+      winProbabilityNow: Number(clamp(68 - metric.overallRisk * 0.42, 10, 90).toFixed(1)),
+      winProbabilityAfterDecision: Number(clamp(69 - metric.overallRisk * 0.32, 10, 92).toFixed(1))
+    },
+    candidates: [
+      {
+        key: 'substitute_now',
+        label: 'تبديل فوري',
+        description: 'خفض المخاطر فورًا على حساب ضغط تكتيكي لحظي.',
+        suitability: Number(clamp(metric.overallRisk + 10, 0, 100).toFixed(1))
+      },
+      {
+        key: 'reduce_intensity',
+        label: 'خفض الشدة',
+        description: 'تقليل التسارع مع بقاء اللاعب داخل الملعب.',
+        suitability: Number(clamp(84 - metric.overallRisk * 0.4, 0, 100).toFixed(1))
+      },
+      {
+        key: 'continue_monitor',
+        label: 'استمرار مع مراقبة',
+        description: 'الاستمرار تحت مراقبة لحظية كل 60 ثانية.',
+        suitability: Number(clamp(76 - metric.overallRisk * 0.5, 0, 100).toFixed(1))
+      }
+    ]
+  };
+}
+
+function buildMatchImpact(metric) {
+  const baseWin = clamp(66 - metric.overallRisk * 0.36, 8, 90);
+  const slope = clamp(metric.overallRisk / 32, 0.6, 4.8);
+  const riskEscalationCurve = Array.from({ length: 6 }).map((_, minute) => {
+    const continueRisk = clamp(metric.overallRisk + slope * minute);
+    const substituteRisk = clamp(metric.overallRisk - 12 + minute * 0.35);
+    return {
+      minute,
+      continueRisk: Number(continueRisk.toFixed(1)),
+      substituteRisk: Number(substituteRisk.toFixed(1)),
+      deltaRisk: Number((continueRisk - substituteRisk).toFixed(1))
+    };
+  });
+
+  const continueRisk = riskEscalationCurve[5].continueRisk;
+  const substituteRisk = riskEscalationCurve[5].substituteRisk;
+  const continueWin = clamp(baseWin - 2.3, 8, 90);
+  const substituteWin = clamp(baseWin + 1.8 + (metric.overallRisk - substituteRisk) * 0.08, 8, 91);
+
+  return {
+    impact: {
+      continueFiveMinutes: {
+        label: 'استمرار اللاعب 5 دقائق',
+        projectedRisk: continueRisk,
+        winProbability: Number(continueWin.toFixed(1))
+      },
+      substituteNow: {
+        label: 'تبديل اللاعب الآن',
+        projectedRisk: substituteRisk,
+        winProbability: Number(substituteWin.toFixed(1))
+      },
+      deltaWinProbability: Number((substituteWin - continueWin).toFixed(1)),
+      riskEscalationCurve
+    }
+  };
+}
+
+function buildFinancialExposure(metric) {
+  const injuryProbability = metric.overallRisk / 100;
+  const exposure = injuryProbability * 250000 * 0.12;
+  const expectedAbsenceDays = clamp(metric.overallRisk * 0.15, 1, 20);
+  return {
+    exposure: {
+      estimatedInjuryCost: Math.round(exposure),
+      expectedAbsenceDays: Number(expectedAbsenceDays.toFixed(1)),
+      matchValueLoss: Math.round(exposure * 0.65),
+      expectedCost30Days: Math.round(exposure * 1.35),
+      exposureScore: Number(metric.overallRisk.toFixed(1)),
+      classification: metric.overallRisk >= 75 ? 'High' : metric.overallRisk >= 45 ? 'Medium' : 'Low'
+    }
+  };
+}
+
+function buildSeasonForecast(metric) {
+  const matches = Array.from({ length: 20 }).map((_, idx) => {
+    const match = idx + 1;
+    const fatigue = clamp(metric.fatigueScore + idx * 1.6 + Math.sin(match * 0.9) * 3, 0, 100);
+    const heatStress = clamp(metric.hydrationRisk * 0.5 + idx * 0.7, 0, 100);
+    const injuryProbability = clamp(metric.injuryRisk + idx * 1.1 + heatStress * 0.12, 0, 100);
+    return {
+      match,
+      fatigue: Number(fatigue.toFixed(1)),
+      heatStress: Number(heatStress.toFixed(1)),
+      injuryProbability: Number(injuryProbability.toFixed(1)),
+      recommendation: injuryProbability > 72 ? 'راحة/تدوير' : 'جاهز للمشاركة'
+    };
+  });
+
+  const peak = matches.reduce((acc, item) => (item.fatigue > acc.fatigue ? item : acc), matches[0]);
+  return {
+    forecast: {
+      totalMatches: 20,
+      avgInjuryProbability: Number(
+        (matches.reduce((sum, m) => sum + m.injuryProbability, 0) / matches.length).toFixed(1)
+      ),
+      peakStrain: {
+        match: peak.match,
+        strain: Number((peak.fatigue * 0.6 + peak.injuryProbability * 0.4).toFixed(1))
+      },
+      bestRestWindows: matches
+        .filter((m) => m.injuryProbability >= 70)
+        .slice(0, 5)
+        .map((m) => ({
+          match: m.match,
+          reason: 'احتمالية إصابة مرتفعة'
+        })),
+      matches
+    }
+  };
+}
+
+function buildOverview(players, metrics) {
+  const latestByPlayer = new Map();
+  metrics.forEach((metric) => {
+    if (!latestByPlayer.has(metric.playerId)) {
+      latestByPlayer.set(metric.playerId, metric);
+    }
+  });
+
+  const rows = players.map((player) => {
+    const metric = latestByPlayer.get(player.id);
+    const readiness = metric ? Number(clamp(100 - metric.overallRisk * 0.84, 0, 100).toFixed(1)) : 0;
+    return {
+      playerId: player.id,
+      playerName: player.name,
+      sport: player.sport,
+      position: player.position,
+      readiness,
+      overallRisk: metric?.overallRisk || 0,
+      injuryRisk: metric?.injuryRisk || 0,
+      hydrationRisk: metric?.hydrationRisk || 0,
+      fatigueScore: metric?.fatigueScore || 0,
+      updatedAt: metric?.createdAt || null
+    };
+  });
+
+  return {
+    teamReadiness:
+      rows.length === 0
+        ? 0
+        : Number((rows.reduce((sum, row) => sum + row.readiness, 0) / rows.length).toFixed(1)),
+    interventionBacklog: 0,
+    hotRiskList: [...rows].sort((a, b) => b.overallRisk - a.overallRisk).slice(0, 5),
+    readinessBoard: [...rows].sort((a, b) => b.readiness - a.readiness),
+    hydrationWatch: [...rows].sort((a, b) => b.hydrationRisk - a.hydrationRisk).slice(0, 5)
+  };
+}
+
+function buildPlayerProfile(player, metric) {
+  if (!player || !metric) return null;
+  const tacticalAdvice = [];
+  if (metric.overallRisk >= 78) tacticalAdvice.push('تبديل وقائي فوري مع تبريد سريع.');
+  else if (metric.overallRisk >= 60) tacticalAdvice.push('خفض الشدة ومراجعة المؤشرات بعد 3 دقائق.');
+  else tacticalAdvice.push('الاستمرار الحالي آمن مع مراقبة لحظية.');
+  if (metric.hydrationRisk >= 55) tacticalAdvice.push('تدخل ترطيب فوري.');
+  if (metric.injuryRisk >= 68) tacticalAdvice.push('تجنب الالتحامات عالية الشدة.');
+
+  return {
+    player,
+    readiness: Number(clamp(100 - metric.overallRisk * 0.82, 0, 100).toFixed(1)),
+    latestMetric: metric,
+    tacticalAdvice
+  };
+}
+
 export default function App() {
   const [mode, setMode] = useState('executive');
-  const [players, setPlayers] = useState([]);
+  const [players] = useState(LOCAL_PLAYERS);
   const [selectedPlayerId, setSelectedPlayerId] = useState('all');
 
   const [metrics, setMetrics] = useState([]);
@@ -73,10 +288,14 @@ export default function App() {
   const [seasonForecast, setSeasonForecast] = useState(null);
   const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
   const [activeSimulations, setActiveSimulations] = useState([]);
-  const [scenarios, setScenarios] = useState([]);
+  const [scenarios] = useState([
+    { key: 'balanced', label: 'مباراة متوازنة' },
+    { key: 'intense', label: 'ضغط تنافسي عالٍ' },
+    { key: 'heatwave', label: 'أجواء حارة ورطبة' }
+  ]);
 
-  const [streamState, setStreamState] = useState('جاري الاتصال...');
-  const [actionMessage, setActionMessage] = useState('جاهز للتشغيل');
+  const [streamState, setStreamState] = useState('تشغيل محلي');
+  const [actionMessage, setActionMessage] = useState('جاهز للمحاكاة');
   const [simForm, setSimForm] = useState({
     scenario: 'balanced',
     durationTicks: 24,
@@ -100,206 +319,190 @@ export default function App() {
   }, [interventions, selectedPlayerId]);
 
   const selectedMetric = filteredMetrics[0] || null;
-
-  async function request(path, options) {
-    const res = await fetch(`${API_ROOT}${path}`, options);
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}));
-      throw new Error(payload.error || 'Request failed');
+  const selectedPlayer = useMemo(() => {
+    if (selectedPlayerId === 'all') {
+      return players[0];
     }
-    return res.json();
+    return players.find((player) => String(player.id) === String(selectedPlayerId)) || players[0];
+  }, [players, selectedPlayerId]);
+
+  function refreshAll() {
+    setActionMessage('تم تحديث المحاكاة المحلية');
   }
 
-  async function loadGlobalSnapshot() {
-    const [playersData, metricsData, alertsData, dashboardData, interventionsData, overviewData, scenarioData] =
-      await Promise.all([
-        request('/api/players'),
-        request('/api/metrics/latest?limit=60'),
-        request('/api/alerts?status=active&limit=60'),
-        request('/api/dashboard'),
-        request('/api/interventions?status=pending&limit=60'),
-        request('/api/analytics/overview'),
-        request('/api/simulation/scenarios')
-      ]);
-
-    setPlayers(playersData);
-    setMetrics(metricsData);
-    setAlerts(alertsData);
-    setDashboard(dashboardData);
-    setInterventions(interventionsData);
-    setOverview(overviewData);
-    setScenarios(scenarioData);
-  }
-
-  async function loadPlayerDepth(playerId) {
-    if (playerId === 'all') {
-      setPlayerProfile(null);
-      setDecisionCenter(null);
-      setMatchImpact(null);
-      setSimulationCompare({ sessions: [], byScenario: [] });
-      try {
-        const [financialData, seasonData] = await Promise.all([
-          request('/api/financial/exposure'),
-          request('/api/season/forecast')
-        ]);
-        setFinancialExposure(financialData);
-        setSeasonForecast(seasonData);
-      } catch (_error) {
-        setFinancialExposure(null);
-        setSeasonForecast(null);
-      }
-      return;
-    }
-
-    const [profileData, compareData, decisionData, matchImpactData, financialData, seasonData] =
-      await Promise.all([
-        request(`/api/players/${playerId}/profile`),
-        request(`/api/simulation/compare?playerId=${playerId}`),
-        request(`/api/decision/now?playerId=${playerId}`),
-        request(`/api/match-impact?playerId=${playerId}`),
-        request(`/api/financial/exposure?playerId=${playerId}`),
-        request(`/api/season/forecast?playerId=${playerId}`)
-      ]);
-
-    setPlayerProfile(profileData);
-    setSimulationCompare(compareData);
-    setDecisionCenter(decisionData);
-    setMatchImpact(matchImpactData);
-    setFinancialExposure(financialData);
-    setSeasonForecast(seasonData);
-  }
-
-  async function loadActiveSimulations() {
-    const active = await request('/api/simulation/active');
-    setActiveSimulations(active);
-  }
-
-  async function refreshAll() {
-    await loadGlobalSnapshot();
-    await loadPlayerDepth(selectedPlayerId);
-    await loadActiveSimulations();
-  }
-
-  useEffect(() => {
-    refreshAll().catch((err) => setActionMessage(`فشل التحميل: ${err.message}`));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPlayerId]);
-
-  useEffect(() => {
-    const source = new EventSource(`${API_ROOT}/live`);
-
-    source.addEventListener('connected', () => setStreamState('البث الحي متصل'));
-
-    source.addEventListener('metric', (event) => {
-      const metric = JSON.parse(event.data);
-      setMetrics((prev) => [metric, ...prev].slice(0, 120));
-    });
-
-    source.addEventListener('alert', (event) => {
-      const alert = JSON.parse(event.data);
-      setAlerts((prev) => [alert, ...prev].slice(0, 120));
-    });
-
-    source.addEventListener('intervention', (event) => {
-      const intervention = JSON.parse(event.data);
-      setInterventions((prev) => [intervention, ...prev].slice(0, 120));
-      setActionMessage(`تم إنشاء تدخل آلي: ${intervention.title}`);
-    });
-
-    source.addEventListener('intervention-executed', (event) => {
-      const payload = JSON.parse(event.data);
-      setInterventions((prev) => prev.map((item) => (item.id === payload.id ? payload : item)));
-    });
-
-    source.addEventListener('simulation-started', () => {
-      loadActiveSimulations().catch(() => {});
-    });
-
-    source.addEventListener('simulation-ended', () => {
-      loadActiveSimulations().catch(() => {});
-      loadPlayerDepth(selectedPlayerId).catch(() => {});
-    });
-
-    source.addEventListener('dashboard', (event) => {
-      const payload = JSON.parse(event.data);
-      setDashboard(payload);
-    });
-
-    source.onerror = () => {
-      setStreamState('انقطاع البث - إعادة المحاولة');
+  function handleAutoInterventions() {
+    if (!selectedMetric) return;
+    const intervention = {
+      id: `local-int-${selectedMetric.id}`,
+      playerId: selectedMetric.playerId,
+      playerName: selectedMetric.playerName,
+      title: selectedMetric.overallRisk >= 70 ? 'تبديل وقائي فوري' : 'خفض الشدة لمدة 3 دقائق',
+      rationale:
+        selectedMetric.overallRisk >= 70
+          ? 'المخاطر تجاوزت عتبة القرار الوقائي.'
+          : 'توازن المخاطر يتطلب تقليل الحمل مؤقتًا.',
+      priority: Math.round(clamp(selectedMetric.overallRisk, 45, 95)),
+      status: 'pending',
+      createdAt: new Date().toISOString()
     };
-
-    return () => source.close();
-  }, [selectedPlayerId]);
-
-  async function handleAutoInterventions() {
-    try {
-      const payload =
-        selectedPlayerId === 'all'
-          ? {}
-          : {
-              playerId: Number(selectedPlayerId)
-            };
-
-      const result = await request('/api/interventions/auto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      setActionMessage(`تم إنشاء ${result.createdCount} تدخل علاجي تلقائي`);
-      await refreshAll();
-    } catch (error) {
-      setActionMessage(error.message);
-    }
+    setInterventions((prev) => [intervention, ...prev].slice(0, 60));
+    setActionMessage('تم توليد تدخل محلي من محرك الذكاء');
   }
 
-  async function handleExecuteIntervention(id) {
-    try {
-      await request(`/api/interventions/${id}/execute`, { method: 'PATCH' });
-      setActionMessage('تم تنفيذ التدخل بنجاح');
-      await refreshAll();
-    } catch (error) {
-      setActionMessage(error.message);
-    }
+  function handleExecuteIntervention(id) {
+    setInterventions((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status: 'executed',
+              executedAt: new Date().toISOString()
+            }
+          : item
+      )
+    );
+    setActionMessage('تم تنفيذ التدخل محليًا');
   }
 
-  async function handleStartSimulation(event) {
+  function handleStartSimulation(event) {
     event.preventDefault();
     if (selectedPlayerId === 'all') {
-      setActionMessage('اختر لاعبًا أولاً قبل تشغيل المحاكاة');
+      setActionMessage('اختر لاعبًا أولاً قبل تشغيل الجلسة');
       return;
     }
 
-    try {
-      await request('/api/simulation/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          playerId: Number(selectedPlayerId),
-          scenario: simForm.scenario,
-          durationTicks: Number(simForm.durationTicks),
-          sleepHours: Number(simForm.sleepHours),
-          notes: simForm.notes
-        })
-      });
+    const session = {
+      id: `sim-${Date.now()}`,
+      playerId: Number(selectedPlayerId),
+      scenario: simForm.scenario,
+      ticks: 0,
+      maxTicks: Number(simForm.durationTicks),
+      sleepHours: Number(simForm.sleepHours)
+    };
 
-      setActionMessage('تم تشغيل جلسة المحاكاة الرقمية');
-      await refreshAll();
-    } catch (error) {
-      setActionMessage(error.message);
-    }
+    setActiveSimulations((prev) => [session, ...prev].slice(0, 10));
+    setSimulationCompare((prev) => {
+      const existing = prev.byScenario.find((row) => row.scenario === simForm.scenario);
+      if (existing) {
+        return {
+          ...prev,
+          byScenario: prev.byScenario.map((row) =>
+            row.scenario === simForm.scenario ? { ...row, runs: row.runs + 1 } : row
+          )
+        };
+      }
+      return {
+        ...prev,
+        byScenario: [
+          ...prev.byScenario,
+          { scenario: simForm.scenario, runs: 1, avgOverallRisk: Number(selectedMetric?.overallRisk || 0) }
+        ]
+      };
+    });
+    setActionMessage('تم تشغيل جلسة محاكاة محلية');
   }
 
-  async function handleStopSimulation(sessionId) {
-    try {
-      await request(`/api/simulation/stop/${sessionId}`, { method: 'POST' });
-      setActionMessage('تم إيقاف جلسة المحاكاة');
-      await refreshAll();
-    } catch (error) {
-      setActionMessage(error.message);
-    }
+  function handleStopSimulation(sessionId) {
+    setActiveSimulations((prev) => prev.filter((session) => session.id !== sessionId));
+    setActionMessage('تم إيقاف الجلسة المحلية');
   }
+
+  useEffect(() => {
+    let metricId = 1;
+    setStreamState('محرك البيانات المحلي متصل');
+
+    const stopTelemetry = startTelemetry(
+      (sample) => {
+        const risk = computeRisk(sample);
+        const metric = {
+          id: `${selectedPlayer.id}-${metricId}`,
+          playerId: selectedPlayer.id,
+          playerName: selectedPlayer.name,
+          heartRate: Number(sample.heartRate.toFixed(1)),
+          acceleration: Number((0.8 + sample.fatigue * 0.027 + sample.neuralLoad * 0.009).toFixed(2)),
+          temperature: Number((36.3 + sample.heatStress * 0.03).toFixed(1)),
+          sleepHours: Number(clamp(8.2 - sample.neuralLoad * 0.02, 4.2, 8.5).toFixed(1)),
+          fatigueScore: risk.fatigueScore,
+          injuryRisk: risk.injuryRisk,
+          hydrationRisk: risk.hydrationRisk,
+          overallRisk: risk.overallRisk,
+          createdAt: new Date().toISOString(),
+          source: 'client-simulation'
+        };
+        metricId += 1;
+
+        setMetrics((prev) => {
+          const nextMetrics = [metric, ...prev].slice(0, 140);
+          const latestByPlayer = new Map();
+          nextMetrics.forEach((item) => {
+            if (!latestByPlayer.has(item.playerId)) latestByPlayer.set(item.playerId, item);
+          });
+
+          const latestRows = [...latestByPlayer.values()];
+          const avgRisk =
+            latestRows.length === 0
+              ? 0
+              : latestRows.reduce((sum, item) => sum + Number(item.overallRisk), 0) / latestRows.length;
+          const readinessValues = latestRows.map((item) => clamp(100 - Number(item.overallRisk) * 0.84, 0, 100));
+          const activeAlertsCount = nextMetrics.filter((item) => Number(item.overallRisk) >= 75).length;
+
+          setDashboard({
+            playersCount: players.length,
+            activeAlerts: activeAlertsCount,
+            avgRisk: Number(avgRisk.toFixed(1)),
+            interventionBacklog: 0,
+            teamReadiness:
+              readinessValues.length === 0
+                ? 0
+                : Number(
+                    (readinessValues.reduce((sum, item) => sum + item, 0) / readinessValues.length).toFixed(1)
+                  ),
+            latestMetricAt: metric.createdAt
+          });
+          setOverview(buildOverview(players, nextMetrics));
+          return nextMetrics;
+        });
+
+        if (metric.overallRisk >= 75) {
+          const alertPayload = {
+            id: `alert-${metric.id}`,
+            playerId: metric.playerId,
+            playerName: metric.playerName,
+            severity: metric.overallRisk >= 85 ? 'critical' : 'high',
+            message: `تحذير محلي: ${metric.playerName} دخل منطقة خطر مرتفعة (${metric.overallRisk}%)`,
+            createdAt: metric.createdAt
+          };
+          setAlerts((prev) => [alertPayload, ...prev].slice(0, 80));
+        }
+
+        const decision = buildDecision(metric);
+        const impact = buildMatchImpact(metric);
+        const exposure = buildFinancialExposure(metric);
+        const season = buildSeasonForecast(metric);
+
+        setDecisionCenter({
+          playerId: metric.playerId,
+          playerName: metric.playerName,
+          metric,
+          decision
+        });
+        setMatchImpact(impact);
+        setFinancialExposure(exposure);
+        setSeasonForecast(season);
+
+        if (selectedPlayerId === 'all') {
+          setPlayerProfile(null);
+        } else {
+          setPlayerProfile(buildPlayerProfile(selectedPlayer, metric));
+        }
+      },
+      { playerId: selectedPlayer.id }
+    );
+
+    return () => {
+      stopTelemetry();
+    };
+  }, [players.length, selectedPlayer.id, selectedPlayerId]);
 
   return (
     <div className={`app mode-${mode}`} dir="rtl">
