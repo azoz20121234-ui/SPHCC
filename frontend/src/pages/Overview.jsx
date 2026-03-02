@@ -1,8 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { startTelemetry } from '../engine/telemetryEngine.js';
-import { calculateRiskSnapshot } from '../engine/riskEngine.js';
-import { calculateImpact } from '../engine/impactEngine.js';
-import { generateAiDecision } from '../engine/aiEngine.js';
+import { useSimulation } from '../utils/SimulationContext.jsx';
 
 function formatCountdown(seconds) {
   if (!Number.isFinite(seconds)) return '--:--';
@@ -13,58 +9,22 @@ function formatCountdown(seconds) {
 }
 
 function round(value, digits = 1) {
-  return Number(Number(value).toFixed(digits));
+  return Number(Number(value || 0).toFixed(digits));
 }
 
 export default function Overview() {
-  const [telemetry, setTelemetry] = useState({
-    fatigue: 40,
-    neuralLoad: 35,
-    heatStress: 30,
-    hydration: 80,
-    heartRate: 120,
-    tick: 0
-  });
-  const [riskSnapshot, setRiskSnapshot] = useState({
-    risk: 0,
-    escalationRate: 0.1,
-    countdownToThreshold: Infinity,
-    threshold: 75
-  });
-  const fatigueHistoryRef = useRef([]);
+  const { selectedMetric, selectedPlayer, teamReadiness } = useSimulation();
 
-  useEffect(() => {
-    const stopTelemetry = startTelemetry((sample) => {
-      const nextHistory = [...fatigueHistoryRef.current, Number(sample.fatigue)].slice(-5);
-      fatigueHistoryRef.current = nextHistory;
+  const countdown = selectedMetric?.countdownToThreshold ?? Infinity;
+  const risk = selectedMetric?.overallRisk ?? 0;
+  const confidence = selectedMetric?.aiDecision?.confidence ?? 0;
+  const exposure = selectedMetric?.financialExposure?.expectedCost30Days ?? 0;
 
-      const snapshot = calculateRiskSnapshot(sample, nextHistory, 75);
-      setTelemetry(sample);
-      setRiskSnapshot(snapshot);
-    });
-
-    return () => {
-      stopTelemetry();
-    };
-  }, []);
-
-  const impact = useMemo(() => calculateImpact(riskSnapshot.risk), [riskSnapshot.risk]);
-  const aiDecision = useMemo(
-    () => generateAiDecision({ overallRisk: riskSnapshot.risk }),
-    [riskSnapshot.risk]
-  );
-
-  const teamReadiness = useMemo(() => round(Math.max(0, 100 - riskSnapshot.risk * 0.85)), [riskSnapshot.risk]);
-  const countdownTone =
-    riskSnapshot.countdownToThreshold < 120
-      ? 'danger'
-      : riskSnapshot.countdownToThreshold < 300
-        ? 'warning'
-        : 'normal';
+  const countdownTone = countdown < 120 ? 'danger' : countdown < 300 ? 'warning' : 'normal';
 
   const ringRadius = 54;
   const ringLength = 2 * Math.PI * ringRadius;
-  const ringOffset = ringLength - (Math.min(100, riskSnapshot.risk) / 100) * ringLength;
+  const ringOffset = ringLength - (Math.min(100, risk) / 100) * ringLength;
 
   return (
     <section className="page fade-in">
@@ -76,7 +36,7 @@ export default function Overview() {
       <article className="card countdown-hero">
         <span className="muted">الوقت المتبقي قبل العتبة الحرجة</span>
         <strong className={`countdown-number ${countdownTone} number`}>
-          {formatCountdown(riskSnapshot.countdownToThreshold)}
+          {formatCountdown(countdown)}
         </strong>
       </article>
 
@@ -95,53 +55,31 @@ export default function Overview() {
                 strokeDashoffset={ringOffset}
               />
             </svg>
-            <div className="risk-ring-value number">{round(riskSnapshot.risk)}%</div>
+            <div className="risk-ring-value number">{round(risk)}%</div>
           </div>
-          <p className="muted">معدل التصاعد: {round(riskSnapshot.escalationRate, 3)} /ث</p>
+          <p className="muted">تصاعد الخطر: {round(selectedMetric?.escalationRate, 3)} /ث</p>
         </article>
 
         <article className="card">
           <h3>رؤية الذكاء الاصطناعي</h3>
-          <p>{aiDecision.aiCoachLine}</p>
+          <p>{selectedMetric?.aiDecision?.aiCoachLine || 'جاري تحليل التوصية...'}</p>
           <div className="metric-line">
-            <span className="muted">الثقة</span>
-            <strong className="number">{aiDecision.confidence}%</strong>
+            <span className="muted">ثقة القرار</span>
+            <strong className="number">{confidence}%</strong>
           </div>
           <div className="metric-line">
             <span className="muted">جاهزية الفريق</span>
-            <strong className="number">{teamReadiness}%</strong>
+            <strong className="number">{teamReadiness.toFixed(1)}%</strong>
           </div>
         </article>
 
         <article className="card">
           <h3>التعرض المالي</h3>
-          <div className="kpi-number number">SAR {impact.financialExposure.toLocaleString('en-US')}</div>
-          <p className="muted">تقدير فوري لتكلفة المخاطر الحالية.</p>
+          <div className="kpi-number number">ر.س {Math.round(exposure).toLocaleString('ar-SA')}</div>
+          <p className="muted">التكلفة المتوقعة خلال 30 يومًا.</p>
           <div className="metric-line">
-            <span className="muted">احتمالية الإصابة</span>
-            <strong className="number">{round(impact.injuryProbability * 100)}%</strong>
-          </div>
-        </article>
-      </div>
-
-      <div className="page-grid">
-        <article className="card">
-          <h3>القياسات الحية</h3>
-          <div className="metric-line">
-            <span className="muted">Fatigue</span>
-            <strong className="number">{round(telemetry.fatigue)}%</strong>
-          </div>
-          <div className="metric-line">
-            <span className="muted">Neural Load</span>
-            <strong className="number">{round(telemetry.neuralLoad)}%</strong>
-          </div>
-          <div className="metric-line">
-            <span className="muted">Heat Stress</span>
-            <strong className="number">{round(telemetry.heatStress)}%</strong>
-          </div>
-          <div className="metric-line">
-            <span className="muted">Heart Rate</span>
-            <strong className="number">{round(telemetry.heartRate)} bpm</strong>
+            <span className="muted">اللاعب النشط</span>
+            <strong className="number">{selectedPlayer?.name}</strong>
           </div>
         </article>
       </div>

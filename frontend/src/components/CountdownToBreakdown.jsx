@@ -80,9 +80,9 @@ export default function CountdownToBreakdown({ selectedMetric, decisionData, mat
   return (
     <section className={`panel breakdown-panel ${isCritical ? 'critical-zone' : ''}`}>
       <div className="breakdown-header">
-        <h2>Countdown to Breakdown</h2>
+        <h2>العد التنازلي للانهيار</h2>
         <span className={`risk-zone ${isCritical ? 'danger' : 'watch'}`}>
-          {isCritical ? 'Risk Zone: Critical' : 'Risk Zone: Monitor'}
+          {isCritical ? 'منطقة الخطر: حرجة' : 'منطقة الخطر: مراقبة'}
         </span>
       </div>
 
@@ -97,7 +97,7 @@ export default function CountdownToBreakdown({ selectedMetric, decisionData, mat
           <strong>{projection.overallRisk.toFixed(1)}%</strong>
         </article>
         <article>
-          <span>Neural Load</span>
+          <span>الحمل العصبي</span>
           <strong>{projection.neuralLoad.toFixed(1)}%</strong>
         </article>
         <article>
@@ -105,14 +105,14 @@ export default function CountdownToBreakdown({ selectedMetric, decisionData, mat
           <strong>{projection.escalationPerMinute.toFixed(2)}</strong>
         </article>
         <article>
-          <span>Win Probability</span>
+          <span>احتمالية الفوز</span>
           <strong>{currentWinProbability.toFixed(1)}%</strong>
         </article>
       </div>
 
       {isCritical && (
         <div className="breakdown-alert">
-          <h3>توصية AI Coach الفورية</h3>
+          <h3>توصية المدرب الذكي الفورية</h3>
           <p>
             <b>{bestDecisionLabel}</b> - {bestDecisionReason}
           </p>

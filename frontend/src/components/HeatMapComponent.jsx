@@ -58,7 +58,7 @@ export default function HeatMapComponent({ selectedMetric, decisionData }) {
         </p>
       </div>
 
-      <div className="field-grid" aria-label="Tactical fatigue heat map">
+      <div className="field-grid" aria-label="خريطة تكتيكية لإجهاد الملعب">
         {cells.map((cell) => (
           <div
             key={cell.id}
@@ -67,7 +67,7 @@ export default function HeatMapComponent({ selectedMetric, decisionData }) {
               backgroundColor: cell.color,
               opacity: 0.18 + cell.value / 135
             }}
-            title={`Load ${cell.value}%`}
+            title={`الحمل ${cell.value}%`}
           />
         ))}
       </div>

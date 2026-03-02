@@ -25,7 +25,7 @@ export default function TimelineProjection({ selectedMetric }) {
   if (!selectedMetric) {
     return (
       <section className="panel timeline-panel">
-        <h2>Risk Timeline Projection</h2>
+        <h2>إسقاط المخاطر الزمني</h2>
         <p className="muted">اختر لاعبًا لعرض التوقع الزمني.</p>
       </section>
     );
@@ -52,11 +52,11 @@ export default function TimelineProjection({ selectedMetric }) {
   return (
     <section className="panel timeline-panel">
       <div className="timeline-header">
-        <h2>Risk Timeline Projection</h2>
-        <span>Safe Time Remaining: {formatSeconds(selectedMetric?.countdownToThreshold)}</span>
+        <h2>إسقاط المخاطر الزمني</h2>
+        <span>الوقت الآمن المتبقي: {formatSeconds(selectedMetric?.countdownToThreshold)}</span>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Risk projection timeline">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="مخطط إسقاط المخاطر الزمني">
         <line x1={paddingX} y1={paddingY} x2={paddingX} y2={height - paddingY} className="axis-line" />
         <line
           x1={paddingX}

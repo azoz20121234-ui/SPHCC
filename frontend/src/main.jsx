@@ -6,6 +6,7 @@ import './styles/designTokens.css';
 import './styles/layout.css';
 import './styles/motion.css';
 import './styles/overview.css';
+import './styles/components.css';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

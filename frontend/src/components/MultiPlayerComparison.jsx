@@ -58,10 +58,10 @@ export default function MultiPlayerComparison({ players, latestMetricsMap, fmtNu
         <thead>
           <tr>
             <th>اللاعب</th>
-            <th>Fatigue</th>
-            <th>Injury Risk</th>
-            <th>Win Impact</th>
-            <th>Financial Exposure</th>
+            <th>الإجهاد</th>
+            <th>مخاطر الإصابة</th>
+            <th>تأثير الفوز</th>
+            <th>التعرض المالي</th>
           </tr>
         </thead>
         <tbody>
@@ -74,7 +74,7 @@ export default function MultiPlayerComparison({ players, latestMetricsMap, fmtNu
               <td>{fmtNum(row.fatigue)}%</td>
               <td>{fmtNum(row.injuryRisk)}%</td>
               <td>{fmtNum(row.winImpact)}%</td>
-              <td>SAR {Math.round(row.financialExposure).toLocaleString('en-US')}</td>
+              <td>ر.س {Math.round(row.financialExposure).toLocaleString('ar-SA')}</td>
             </tr>
           ))}
         </tbody>

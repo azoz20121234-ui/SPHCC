@@ -1,7 +1,7 @@
 function buildRiskClass(score) {
-  if (score >= 70) return { label: 'High', className: 'high' };
-  if (score >= 40) return { label: 'Medium', className: 'medium' };
-  return { label: 'Low', className: 'low' };
+  if (score >= 70) return { label: 'مرتفع', className: 'high' };
+  if (score >= 40) return { label: 'متوسط', className: 'medium' };
+  return { label: 'منخفض', className: 'low' };
 }
 
 export default function ExecutiveView({
@@ -74,7 +74,7 @@ export default function ExecutiveView({
     <section className="executive-premium fade-in">
       <article className="exec-hero card glass">
         <div>
-          <h2>Executive Mode</h2>
+          <h2>الوضع التنفيذي</h2>
           <h3>مركز القرار الصحي الرياضي</h3>
           <p>
             لقطة تنفيذية فورية لسلامة الفريق، المخاطر التشغيلية، والتكلفة الطبية المتوقعة خلال
@@ -100,7 +100,7 @@ export default function ExecutiveView({
 
       <section className="exec-panels">
         <article className="card glass exec-summary">
-          <h4>Executive Summary</h4>
+          <h4>الملخص التنفيذي</h4>
           <p>
             مستوى الجاهزية الحالي للفريق: <b>{fmtNum(overview.teamReadiness)}</b>. أعلى خطر حالي لدى
             اللاعب: <b>{overview.hotRiskList?.[0]?.playerName || 'غير متاح'}</b> مع مؤشر
@@ -117,9 +117,9 @@ export default function ExecutiveView({
         </article>
 
         <article className="card glass financial-panel">
-          <h4>Financial Risk</h4>
-          <div className="money">SAR {estimatedInjuryCost.toLocaleString('en-US')}</div>
-          <p>التكلفة المتوقعة خلال 30 يوم: SAR {(exposure?.expectedCost30Days || 0).toLocaleString('en-US')}</p>
+          <h4>المخاطر المالية</h4>
+          <div className="money">ر.س {estimatedInjuryCost.toLocaleString('ar-SA')}</div>
+          <p>التكلفة المتوقعة خلال 30 يوم: ر.س {(exposure?.expectedCost30Days || 0).toLocaleString('ar-SA')}</p>
           <ul className="financial-kpis">
             <li>
               <span>أيام الغياب المتوقعة</span>
@@ -127,11 +127,11 @@ export default function ExecutiveView({
             </li>
             <li>
               <span>خسارة قيمة المباراة</span>
-              <strong>SAR {(exposure?.matchValueLoss || 0).toLocaleString('en-US')}</strong>
+              <strong>ر.س {(exposure?.matchValueLoss || 0).toLocaleString('ar-SA')}</strong>
             </li>
           </ul>
           <div className={`risk-chip ${financialRisk.className}`}>
-            {(exposure?.classification || financialRisk.label).toUpperCase()} Risk Classification
+            تصنيف المخاطر: {exposure?.classification || financialRisk.label}
           </div>
         </article>
       </section>
@@ -162,7 +162,7 @@ export default function ExecutiveView({
         </article>
       </section>
 
-      <footer className="exec-footer">SPHCC Executive Intelligence Layer</footer>
+      <footer className="exec-footer">طبقة الذكاء التنفيذي - SPHCC</footer>
     </section>
   );
 }

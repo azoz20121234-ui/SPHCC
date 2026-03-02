@@ -73,7 +73,7 @@ export function buildFinancialExposureFromRisk(risk) {
       matchValueLoss: Math.round(impact.financialExposure * 0.65),
       expectedCost30Days: Math.round(impact.financialExposure * 1.35),
       exposureScore: round(impact.risk, 1),
-      classification: impact.risk >= 75 ? 'High' : impact.risk >= 45 ? 'Medium' : 'Low'
+      classification: impact.risk >= 75 ? 'مرتفع' : impact.risk >= 45 ? 'متوسط' : 'منخفض'
     }
   };
 }

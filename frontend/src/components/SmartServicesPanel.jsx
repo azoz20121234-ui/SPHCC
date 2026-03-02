@@ -3,19 +3,19 @@ function serviceStatus(metric) {
   return [
     {
       key: 'preventive_sub',
-      label: 'Preventive Substitution',
+      label: 'التبديل الوقائي',
       status: risk >= 70 ? 'نشط' : 'جاهز',
       note: 'يتابع نافذة التبديل الوقائي بشكل لحظي.'
     },
     {
       key: 'heatshield',
-      label: 'HeatShield Protocol',
+      label: 'بروتوكول الدرع الحراري',
       status: Number(metric?.hydrationRisk || 0) >= 55 ? 'نشط' : 'جاهز',
       note: 'يبني خطة تبريد وترطيب حسب الحمل الحراري.'
     },
     {
       key: 'budget_guard',
-      label: 'Budget Guard',
+      label: 'حارس الميزانية',
       status: risk >= 65 ? 'تنبيه' : 'مستقر',
       note: 'يتوقع التعرض المالي ويضبط أولويات القرار.'
     }
