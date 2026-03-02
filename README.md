@@ -1,40 +1,66 @@
 # SPHCC
 
-Smart Sports Physical Health Care Clinic
+Sports Predictive Health Command Center (SPHCC) MVP.
 
-## وصف الابتكار أو المشروع
-العيادة الرياضية الذكية في الملعب هي منصة متقدمة تعمل كطبيب بيانات لحظي داخل بيئة التدريب والمباريات. تجمع بين فحص العلامات الحيوية، وتحليل الحركة ثلاثي الأبعاد، وذكاء اصطناعي يتنبأ بالإصابات ويقيّم الإجهاد البدني أثناء اللعب المباشر. خلال المباريات، توفر المنصة مراقبة فورية لحالة اللاعبين، وتصدر تنبيهات للطاقم الفني عند ظهور مؤشرات خطر أو انخفاض في الأداء، مما يساعد على اتخاذ قرارات دقيقة مثل التبديل الوقائي أو تعديل الخطة. الحل يقدم رؤية شاملة ترفع جودة الأداء وتقلل الإصابات وتدعم الفوز.
+## Public URL
+- GitHub Pages (frontend): https://azoz20121234-ui.github.io/SPHCC/
 
-## وصف المشكلة والقيمة المضافة
-الفرق الرياضية تعتمد غالبًا على الملاحظة البشرية والانطباع الشخصي لتقييم حالة اللاعبين، سواء في التدريب أو أثناء المباريات، مما يؤدي إلى تجاهل مؤشرات حيوية دقيقة مثل الإجهاد الداخلي، نقص الترطيب، اختلالات الحركة، أو تأثير الحرارة والرطوبة. هذا القصور يتسبب في إصابات كان يمكن منعها، ويؤثر على نتائج المباريات بسبب قرارات غير مبنية على بيانات. العيادة الرياضية الذكية تعالج هذه الفجوة عبر نظام لحظي يجمع بيانات اللاعبين قبل وأثناء وبعد المباراة، ويحلل أكثر من 80 مؤشر خطر باستخدام الذكاء الاصطناعي. القيمة المضافة تشمل الوقاية الاستباقية، تحسين الأداء اللحظي، دعم قرارات التبديل، تقليل الإصابات، ورفع جودة الأداء الفني عبر بيانات علمية دقيقة.
+## Current Architecture
+- Backend: Node.js + Express (`backend/src/server.js`)
+- Database: SQLite (`backend/src/db/database.js`)
+- Real-time: SSE stream on `GET /live`
+- Frontend: static dashboard (`frontend/`) consuming live backend events
 
-## Project Structure
-- `backend/`: Express API for athletes and appointments.
-- `frontend/`: Web dashboard for clinic operations.
-- `docs/innovation-submission-ar.md`: Arabic submission text.
+## Folder Structure
+- `backend/src/server.js`: API + SSE + simulation endpoints
+- `backend/src/db/database.js`: DB schema and data access
+- `backend/src/riskEngine.js`: predictive risk calculations
+- `backend/src/simulation/digitalTwin.js`: synthetic session simulator
+- `frontend/`: dashboard UI (live metrics, gauges, alerts)
+- `.github/workflows/deploy-pages.yml`: auto deploy frontend to GitHub Pages
 
-## Quick Start
-1. Install backend dependencies:
+## Database Schema
+SQLite is initialized on server start with these core tables:
+- `players`
+- `metrics`
+- `alerts`
+
+Additional table for simulation tracking:
+- `simulation_sessions`
+
+## Run Locally
+1. Install backend deps:
 ```bash
-npm run backend:install
+cd backend
+npm install
 ```
 
-2. Start backend API (port 4000):
+2. Start backend:
 ```bash
-npm run backend:dev
+npm run dev
 ```
 
-3. Start frontend (new terminal, port 5500):
-```bash
-npm run frontend:serve
-```
+3. Open UI from backend static hosting:
+- http://localhost:4000
 
-4. Open:
-- `http://localhost:5500`
-
-## API Endpoints
+## Main Endpoints
 - `GET /api/health`
-- `GET /api/athletes`
-- `POST /api/athletes`
-- `GET /api/appointments`
-- `POST /api/appointments`
+- `GET /api/players`
+- `POST /api/players`
+- `GET /api/metrics/latest`
+- `POST /api/metrics`
+- `GET /api/alerts`
+- `PATCH /api/alerts/:id/resolve`
+- `GET /live` (SSE)
+- `POST /api/simulation/start`
+- `POST /api/simulation/stop/:sessionId`
+- `GET /api/simulation/active`
+- `GET /api/simulation/sessions`
+
+## GitHub Pages Auto-Deploy
+Any push to `main` that changes `frontend/**`, `README.md`, or the Pages workflow triggers deployment to:
+- https://azoz20121234-ui.github.io/SPHCC/
+
+## Notes
+- GitHub Pages hosts frontend only.
+- For live data on the public site, backend must be deployed on a public host and `sphcc_api_root` should point to that backend URL.
