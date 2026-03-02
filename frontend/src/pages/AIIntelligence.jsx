@@ -1,36 +1,19 @@
 import { useMemo } from 'react';
+import AIExplainabilityPanel from '../components/AIExplainabilityPanel.jsx';
+import { buildExplainabilitySnapshot } from '../engine/explainabilityEngine.js';
 import { useSimulation } from '../utils/SimulationContext.jsx';
 
 function round(value, digits = 1) {
   return Number(Number(value || 0).toFixed(digits));
 }
 
-function contribution(value, total) {
-  if (!total) return 0;
-  return (value / total) * 100;
-}
-
 export default function AIIntelligence() {
   const { selectedMetric, selectedPlayer } = useSimulation();
 
-  const breakdown = useMemo(() => {
-    if (!selectedMetric) {
-      return [];
-    }
-
-    const fatigue = selectedMetric.fatigueScore * 0.4;
-    const neural = selectedMetric.neuralLoad * 0.3;
-    const heat = selectedMetric.heatStress * 0.2;
-    const hydrationPenalty = (100 - selectedMetric.hydration) * 0.1;
-    const total = fatigue + neural + heat + hydrationPenalty;
-
-    return [
-      { key: 'fatigue', label: 'الإجهاد', value: contribution(fatigue, total) },
-      { key: 'neural', label: 'الحمل العصبي', value: contribution(neural, total) },
-      { key: 'heat', label: 'الإجهاد الحراري', value: contribution(heat, total) },
-      { key: 'hydration', label: 'نقص الترطيب', value: contribution(hydrationPenalty, total) }
-    ];
-  }, [selectedMetric]);
+  const explainability = useMemo(
+    () => buildExplainabilitySnapshot(selectedMetric, selectedPlayer?.twin, selectedMetric?.aiDecision),
+    [selectedMetric, selectedPlayer?.twin]
+  );
 
   return (
     <section className="page fade-in">
@@ -43,14 +26,14 @@ export default function AIIntelligence() {
         <article className="card">
           <h3>تفكيك المخاطر</h3>
           <div className="breakdown-list">
-            {breakdown.map((item) => (
+            {explainability.contributions.map((item) => (
               <div key={item.key} className="breakdown-item">
                 <div className="metric-line">
                   <span>{item.label}</span>
-                  <strong>{round(item.value)}%</strong>
+                  <strong>{round(item.share)}%</strong>
                 </div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${Math.min(100, item.value)}%` }} />
+                  <div className="bar-fill" style={{ width: `${Math.min(100, item.share)}%` }} />
                 </div>
               </div>
             ))}
@@ -78,6 +61,8 @@ export default function AIIntelligence() {
           </ul>
         </article>
       </div>
+
+      <AIExplainabilityPanel snapshot={explainability} />
     </section>
   );
 }
