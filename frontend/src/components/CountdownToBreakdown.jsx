@@ -6,7 +6,7 @@ import {
   formatCountdown
 } from '../utils/riskMath.js';
 
-const CRITICAL_THRESHOLD = 80;
+const CRITICAL_THRESHOLD = 75;
 
 export default function CountdownToBreakdown({ selectedMetric, decisionData, matchImpact }) {
   const [targetTimestamp, setTargetTimestamp] = useState(null);
@@ -14,8 +14,12 @@ export default function CountdownToBreakdown({ selectedMetric, decisionData, mat
 
   const projection = useMemo(() => {
     const overallRisk = Number(selectedMetric?.overallRisk || 0);
+    const directCountdown = Number(selectedMetric?.countdownToThreshold);
+    const directEscalation = Number(selectedMetric?.escalationRate);
     const neuralLoad = computeNeuralLoad(selectedMetric, decisionData);
-    const escalationPerMinute = estimateRiskEscalationPerMinute(selectedMetric, neuralLoad, matchImpact);
+    const escalationPerMinute = Number.isFinite(directEscalation)
+      ? directEscalation * 60
+      : estimateRiskEscalationPerMinute(selectedMetric, neuralLoad, matchImpact);
 
     if (overallRisk >= CRITICAL_THRESHOLD) {
       return {
@@ -26,8 +30,12 @@ export default function CountdownToBreakdown({ selectedMetric, decisionData, mat
       };
     }
 
-    const minutesToCritical = (CRITICAL_THRESHOLD - overallRisk) / Math.max(0.2, escalationPerMinute);
-    const secondsToCritical = Math.max(0, Math.floor(minutesToCritical * 60));
+    const secondsToCritical = Number.isFinite(directCountdown)
+      ? Math.max(0, Math.floor(directCountdown))
+      : Math.max(
+          0,
+          Math.floor(((CRITICAL_THRESHOLD - overallRisk) / Math.max(0.2, escalationPerMinute)) * 60)
+        );
 
     return {
       overallRisk,

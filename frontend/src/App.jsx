@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ExecutiveView from './components/ExecutiveView.jsx';
 import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
 import HeatMapComponent from './components/HeatMapComponent.jsx';
 import CountdownToBreakdown from './components/CountdownToBreakdown.jsx';
 import { startTelemetry } from './engine/telemetryEngine.js';
+import { calculateRiskSnapshot } from './engine/riskEngine.js';
 
 const MODES = {
   executive: 'تنفيذي',
@@ -40,20 +41,6 @@ function compareLabel(list, key) {
 
 function clamp(value, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
-}
-
-function computeRisk(metric) {
-  const hydrationRisk = 100 - Number(metric.hydration);
-  const overallRisk = clamp(
-    metric.fatigue * 0.4 + metric.neuralLoad * 0.3 + metric.heatStress * 0.2 + hydrationRisk * 0.1
-  );
-  const injuryRisk = clamp(metric.fatigue * 0.43 + metric.neuralLoad * 0.35 + metric.heatStress * 0.22);
-  return {
-    fatigueScore: Number(metric.fatigue.toFixed(1)),
-    hydrationRisk: Number(hydrationRisk.toFixed(1)),
-    injuryRisk: Number(injuryRisk.toFixed(1)),
-    overallRisk: Number(overallRisk.toFixed(1))
-  };
 }
 
 function buildDecision(metric) {
@@ -302,6 +289,7 @@ export default function App() {
     sleepHours: 6.6,
     notes: ''
   });
+  const fatigueHistoryRef = useRef([]);
 
   const filteredMetrics = useMemo(() => {
     if (selectedPlayerId === 'all') return metrics;
@@ -409,11 +397,19 @@ export default function App() {
 
   useEffect(() => {
     let metricId = 1;
+    fatigueHistoryRef.current = [];
     setStreamState('محرك البيانات المحلي متصل');
 
     const stopTelemetry = startTelemetry(
       (sample) => {
-        const risk = computeRisk(sample);
+        const nextFatigueHistory = [...fatigueHistoryRef.current, Number(sample.fatigue)].slice(-6);
+        fatigueHistoryRef.current = nextFatigueHistory;
+
+        const riskSnapshot = calculateRiskSnapshot(sample, nextFatigueHistory, 75);
+        const overallRisk = Number(riskSnapshot.risk);
+        const hydrationRisk = Number(clamp(100 - Number(sample.hydration || 0), 0, 100).toFixed(1));
+        const injuryRisk = Number(clamp(overallRisk * 0.78 + Number(sample.neuralLoad || 0) * 0.22, 0, 100).toFixed(1));
+
         const metric = {
           id: `${selectedPlayer.id}-${metricId}`,
           playerId: selectedPlayer.id,
@@ -422,10 +418,12 @@ export default function App() {
           acceleration: Number((0.8 + sample.fatigue * 0.027 + sample.neuralLoad * 0.009).toFixed(2)),
           temperature: Number((36.3 + sample.heatStress * 0.03).toFixed(1)),
           sleepHours: Number(clamp(8.2 - sample.neuralLoad * 0.02, 4.2, 8.5).toFixed(1)),
-          fatigueScore: risk.fatigueScore,
-          injuryRisk: risk.injuryRisk,
-          hydrationRisk: risk.hydrationRisk,
-          overallRisk: risk.overallRisk,
+          fatigueScore: Number(sample.fatigue.toFixed(1)),
+          injuryRisk,
+          hydrationRisk,
+          overallRisk,
+          escalationRate: Number(riskSnapshot.escalationRate),
+          countdownToThreshold: Number(riskSnapshot.countdownToThreshold),
           createdAt: new Date().toISOString(),
           source: 'client-simulation'
         };
