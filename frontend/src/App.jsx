@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ExecutiveView from './components/ExecutiveView.jsx';
 import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
+import HeatMapComponent from './components/HeatMapComponent.jsx';
 
 const queryApiRoot = new URLSearchParams(window.location.search).get('api');
 if (queryApiRoot) {
@@ -471,6 +472,7 @@ export default function App() {
         {mode === 'tactical' && (
           <>
             <TacticalDecisionCenter decisionData={decisionCenter} fmtNum={fmtNum} />
+            <HeatMapComponent selectedMetric={selectedMetric} decisionData={decisionCenter} />
 
             <section className="panel match-impact">
               <h2>تحليل تأثير المباراة</h2>

@@ -427,6 +427,70 @@ th {
   color: var(--muted);
 }
 
+.heatmap-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.heatmap-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.field-grid {
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  padding: 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.field-cell {
+  border-radius: 8px;
+  min-height: 42px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  transition: opacity 0.4s ease, background-color 0.4s ease;
+}
+
+.heatmap-legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+
+.chip.low {
+  background: rgba(34, 197, 94, 0.1);
+  color: #166534;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.chip.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.chip.high {
+  background: rgba(234, 88, 12, 0.1);
+  color: #9a3412;
+  border-color: rgba(234, 88, 12, 0.2);
+}
+
+.chip.critical {
+  background: rgba(220, 38, 38, 0.1);
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
 .season-summary .list.clean li {
   min-height: 52px;
 }
