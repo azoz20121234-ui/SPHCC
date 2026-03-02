@@ -5,6 +5,7 @@ import HeatMapComponent from './components/HeatMapComponent.jsx';
 import CountdownToBreakdown from './components/CountdownToBreakdown.jsx';
 import { startTelemetry } from './engine/telemetryEngine.js';
 import { calculateRiskSnapshot } from './engine/riskEngine.js';
+import { buildFinancialExposureFromRisk, buildMatchImpactFromRisk } from './engine/impactEngine.js';
 
 const MODES = {
   executive: 'تنفيذي',
@@ -96,59 +97,6 @@ function buildDecision(metric) {
         suitability: Number(clamp(76 - metric.overallRisk * 0.5, 0, 100).toFixed(1))
       }
     ]
-  };
-}
-
-function buildMatchImpact(metric) {
-  const baseWin = clamp(66 - metric.overallRisk * 0.36, 8, 90);
-  const slope = clamp(metric.overallRisk / 32, 0.6, 4.8);
-  const riskEscalationCurve = Array.from({ length: 6 }).map((_, minute) => {
-    const continueRisk = clamp(metric.overallRisk + slope * minute);
-    const substituteRisk = clamp(metric.overallRisk - 12 + minute * 0.35);
-    return {
-      minute,
-      continueRisk: Number(continueRisk.toFixed(1)),
-      substituteRisk: Number(substituteRisk.toFixed(1)),
-      deltaRisk: Number((continueRisk - substituteRisk).toFixed(1))
-    };
-  });
-
-  const continueRisk = riskEscalationCurve[5].continueRisk;
-  const substituteRisk = riskEscalationCurve[5].substituteRisk;
-  const continueWin = clamp(baseWin - 2.3, 8, 90);
-  const substituteWin = clamp(baseWin + 1.8 + (metric.overallRisk - substituteRisk) * 0.08, 8, 91);
-
-  return {
-    impact: {
-      continueFiveMinutes: {
-        label: 'استمرار اللاعب 5 دقائق',
-        projectedRisk: continueRisk,
-        winProbability: Number(continueWin.toFixed(1))
-      },
-      substituteNow: {
-        label: 'تبديل اللاعب الآن',
-        projectedRisk: substituteRisk,
-        winProbability: Number(substituteWin.toFixed(1))
-      },
-      deltaWinProbability: Number((substituteWin - continueWin).toFixed(1)),
-      riskEscalationCurve
-    }
-  };
-}
-
-function buildFinancialExposure(metric) {
-  const injuryProbability = metric.overallRisk / 100;
-  const exposure = injuryProbability * 250000 * 0.12;
-  const expectedAbsenceDays = clamp(metric.overallRisk * 0.15, 1, 20);
-  return {
-    exposure: {
-      estimatedInjuryCost: Math.round(exposure),
-      expectedAbsenceDays: Number(expectedAbsenceDays.toFixed(1)),
-      matchValueLoss: Math.round(exposure * 0.65),
-      expectedCost30Days: Math.round(exposure * 1.35),
-      exposureScore: Number(metric.overallRisk.toFixed(1)),
-      classification: metric.overallRisk >= 75 ? 'High' : metric.overallRisk >= 45 ? 'Medium' : 'Low'
-    }
   };
 }
 
@@ -474,8 +422,8 @@ export default function App() {
         }
 
         const decision = buildDecision(metric);
-        const impact = buildMatchImpact(metric);
-        const exposure = buildFinancialExposure(metric);
+        const impact = buildMatchImpactFromRisk(metric.overallRisk);
+        const exposure = buildFinancialExposureFromRisk(metric.overallRisk);
         const season = buildSeasonForecast(metric);
 
         setDecisionCenter({
