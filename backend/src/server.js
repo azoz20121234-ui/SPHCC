@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -31,6 +32,8 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDir = path.join(__dirname, '..', '..', 'frontend');
+const frontendDistDir = path.join(frontendDir, 'dist');
+const frontendStaticDir = fs.existsSync(frontendDistDir) ? frontendDistDir : null;
 
 const liveClients = new Set();
 const fatigueState = new Map();
@@ -349,11 +352,13 @@ app.get('/live', (req, res) => {
   });
 });
 
-app.use(express.static(frontendDir));
+if (frontendStaticDir) {
+  app.use(express.static(frontendStaticDir));
 
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(frontendDir, 'index.html'));
-});
+  app.get(/^\/(?!api|live).*/, (_req, res) => {
+    res.sendFile(path.join(frontendStaticDir, 'index.html'));
+  });
+}
 
 app.listen(port, () => {
   initDatabase();

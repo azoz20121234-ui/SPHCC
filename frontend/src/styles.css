@@ -1,0 +1,267 @@
+:root {
+  --bg: #f3f5f7;
+  --panel: rgba(255, 255, 255, 0.88);
+  --line: rgba(20, 20, 20, 0.08);
+  --text: #111111;
+  --muted: #616161;
+  --brand: #0a84ff;
+  --danger: #ff3b30;
+  --warn: #ff9f0a;
+  --ok: #34c759;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1000px 300px at 10% -10%, rgba(10, 132, 255, 0.16) 0%, transparent 60%),
+    radial-gradient(800px 240px at 90% 0%, rgba(52, 199, 89, 0.1) 0%, transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+.shell {
+  width: min(1200px, 94%);
+  margin-inline: auto;
+}
+
+.topbar {
+  margin-top: 14px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.topbar p {
+  margin: 5px 0 0;
+  color: var(--muted);
+}
+
+.pill {
+  border: 1px solid rgba(10, 132, 255, 0.25);
+  color: #0057b8;
+  background: rgba(10, 132, 255, 0.1);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+}
+
+.controls,
+.stats,
+.gauges,
+.alerts {
+  grid-column: span 2;
+}
+
+.controls label {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+
+.segmented {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.segmented button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  border-color: transparent;
+  background: var(--brand);
+  color: #fff;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+}
+
+.stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.stats article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.stats span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.stats strong {
+  font-size: 1.8rem;
+}
+
+.gauge-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.gauge {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.gauge span {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.gauge strong {
+  font-size: 1.6rem;
+}
+
+.gauge.low {
+  box-shadow: inset 4px 0 0 var(--ok);
+}
+
+.gauge.moderate {
+  box-shadow: inset 4px 0 0 #ffd60a;
+}
+
+.gauge.high {
+  box-shadow: inset 4px 0 0 var(--warn);
+}
+
+.gauge.critical {
+  box-shadow: inset 4px 0 0 var(--danger);
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  padding: 8px;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.executive ul,
+.tactical ul,
+.alerts ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.tactical li,
+.executive li {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px;
+  background: #fff;
+}
+
+.alerts li {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.alerts li.critical {
+  border-color: rgba(255, 59, 48, 0.4);
+}
+
+.alerts li.high {
+  border-color: rgba(255, 159, 10, 0.5);
+}
+
+.alerts li span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 900px) {
+  .main-grid,
+  .stats,
+  .gauge-row {
+    grid-template-columns: 1fr;
+  }
+
+  .controls,
+  .stats,
+  .gauges,
+  .alerts {
+    grid-column: span 1;
+  }
+
+  .segmented {
+    flex-wrap: wrap;
+  }
+}
