@@ -1,49 +1,57 @@
-# SPHCC
+# SPHCC Platform MVP
 
-Sports Predictive Health Command Center (SPHCC) MVP.
+منصة **Sports Predictive Health Command Center** لإدارة صحة اللاعبين لحظيًا داخل النادي/الملعب.
 
-## Public URL
-- GitHub Pages (frontend): https://azoz20121234-ui.github.io/SPHCC/
+## رابط الواجهة العامة
+- https://azoz20121234-ui.github.io/SPHCC/
 
-## Current Architecture
-- Backend: Node.js + Express (`backend/src/server.js`)
-- Database: SQLite (`backend/src/db/database.js`)
-- Real-time: SSE stream on `GET /live`
-- Frontend: static dashboard (`frontend/`) consuming live backend events
+## ماذا تحتوي المنصة الآن
+- Backend حقيقي: `Node.js + Express`
+- قاعدة بيانات حقيقية: `SQLite`
+- بث حي: `SSE` عبر `GET /live`
+- Dashboard React + Vite (RTL عربي) بثلاثة أوضاع:
+  - Executive
+  - Live Command Center
+  - Tactical AI
 
-## Folder Structure
-- `backend/src/server.js`: API + SSE + simulation endpoints
-- `backend/src/db/database.js`: DB schema and data access
-- `backend/src/riskEngine.js`: predictive risk calculations
-- `backend/src/simulation/digitalTwin.js`: synthetic session simulator
-- `frontend/`: dashboard UI (live metrics, gauges, alerts)
-- `.github/workflows/deploy-pages.yml`: auto deploy frontend to GitHub Pages
+## المجلدات
+- `backend/src/server.js`: REST API + SSE + Simulation
+- `backend/src/db/database.js`: schema + data access
+- `backend/src/riskEngine.js`: fatigue/injury/hydration predictive formulas
+- `backend/src/simulation/digitalTwin.js`: synthetic match simulation
+- `frontend/`: React dashboard
+- `.github/workflows/deploy-pages.yml`: نشر واجهة React تلقائيًا إلى GitHub Pages
 
-## Database Schema
-SQLite is initialized on server start with these core tables:
+## قاعدة البيانات
+الجداول الأساسية:
 - `players`
 - `metrics`
 - `alerts`
 
-Additional table for simulation tracking:
+جدول إضافي:
 - `simulation_sessions`
 
-## Run Locally
-1. Install backend deps:
+## تشغيل محلي (منصة فعلية)
+1. تثبيت المتطلبات:
 ```bash
-cd backend
-npm install
+npm run backend:install
+npm run frontend:install
 ```
 
-2. Start backend:
+2. تشغيل الـBackend (Terminal 1):
 ```bash
-npm run dev
+npm run backend:dev
 ```
 
-3. Open UI from backend static hosting:
-- http://localhost:4000
+3. تشغيل React (Terminal 2):
+```bash
+npm run frontend:dev
+```
 
-## Main Endpoints
+4. فتح الواجهة:
+- `http://localhost:5173`
+
+## API أساسية
 - `GET /api/health`
 - `GET /api/players`
 - `POST /api/players`
@@ -51,16 +59,15 @@ npm run dev
 - `POST /api/metrics`
 - `GET /api/alerts`
 - `PATCH /api/alerts/:id/resolve`
-- `GET /live` (SSE)
+- `GET /live`
 - `POST /api/simulation/start`
 - `POST /api/simulation/stop/:sessionId`
 - `GET /api/simulation/active`
 - `GET /api/simulation/sessions`
 
-## GitHub Pages Auto-Deploy
-Any push to `main` that changes `frontend/**`, `README.md`, or the Pages workflow triggers deployment to:
-- https://azoz20121234-ui.github.io/SPHCC/
+## النشر التلقائي للواجهة
+أي Push على `main` يغيّر `frontend/**` يطلق GitHub Action ويبني Vite ثم ينشر `frontend/dist` على Pages.
 
-## Notes
-- GitHub Pages hosts frontend only.
-- For live data on the public site, backend must be deployed on a public host and `sphcc_api_root` should point to that backend URL.
+## ملاحظة تشغيلية
+GitHub Pages يستضيف الواجهة فقط. لتشغيل المنصة كاملة عبر نفس الرابط العام، انشر الـBackend على خدمة عامة (Render/Railway/Fly) واضبط:
+- `localStorage.sphcc_api_root = "https://your-backend-url"`
