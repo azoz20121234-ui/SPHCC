@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ExecutiveView from './components/ExecutiveView.jsx';
 
 const queryApiRoot = new URLSearchParams(window.location.search).get('api');
 if (queryApiRoot) {
@@ -23,7 +24,7 @@ function fmtNum(value) {
 
 function fmtTime(value) {
   if (!value) return '-';
-  return new Date(value).toLocaleTimeString('ar-SA');
+  return new Date(value).toLocaleString('ar-SA');
 }
 
 function gaugeClass(score) {
@@ -33,44 +34,64 @@ function gaugeClass(score) {
   return 'gauge low';
 }
 
+function compareLabel(list, key) {
+  return list.find((item) => item.scenario === key || item.key === key)?.label || key;
+}
+
 export default function App() {
   const [mode, setMode] = useState('executive');
   const [players, setPlayers] = useState([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('all');
+
   const [metrics, setMetrics] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [dashboard, setDashboard] = useState({ playersCount: 0, activeAlerts: 0, avgRisk: 0 });
-  const [streamState, setStreamState] = useState('جاري الاتصال...');
+  const [interventions, setInterventions] = useState([]);
+  const [dashboard, setDashboard] = useState({
+    playersCount: 0,
+    activeAlerts: 0,
+    avgRisk: 0,
+    interventionBacklog: 0,
+    teamReadiness: 0
+  });
 
-  const selectedMetric = useMemo(() => {
-    if (selectedPlayerId === 'all') return metrics[0] || null;
-    return metrics.find((item) => String(item.playerId) === String(selectedPlayerId)) || null;
+  const [overview, setOverview] = useState({
+    teamReadiness: 0,
+    interventionBacklog: 0,
+    hotRiskList: [],
+    readinessBoard: [],
+    hydrationWatch: []
+  });
+
+  const [playerProfile, setPlayerProfile] = useState(null);
+  const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
+  const [activeSimulations, setActiveSimulations] = useState([]);
+  const [scenarios, setScenarios] = useState([]);
+
+  const [streamState, setStreamState] = useState('جاري الاتصال...');
+  const [actionMessage, setActionMessage] = useState('جاهز للتشغيل');
+  const [simForm, setSimForm] = useState({
+    scenario: 'balanced',
+    durationTicks: 24,
+    sleepHours: 6.6,
+    notes: ''
+  });
+
+  const filteredMetrics = useMemo(() => {
+    if (selectedPlayerId === 'all') return metrics;
+    return metrics.filter((item) => String(item.playerId) === String(selectedPlayerId));
   }, [metrics, selectedPlayerId]);
 
-  const tacticalPlan = useMemo(() => {
-    if (!selectedMetric) {
-      return ['لا توجد بيانات حية بعد'];
-    }
+  const filteredAlerts = useMemo(() => {
+    if (selectedPlayerId === 'all') return alerts;
+    return alerts.filter((item) => String(item.playerId) === String(selectedPlayerId));
+  }, [alerts, selectedPlayerId]);
 
-    const items = [];
-    if (selectedMetric.overallRisk >= 80) {
-      items.push('تبديل وقائي فوري وتقليل الحمل البدني 60% خلال 10 دقائق.');
-    } else if (selectedMetric.overallRisk >= 60) {
-      items.push('خفض شدة الجهد إلى متوسط وإعادة تقييم المؤشرات بعد دقيقتين.');
-    } else {
-      items.push('استمرار الخطة الحالية مع مراقبة لحظية كل دقيقتين.');
-    }
+  const filteredInterventions = useMemo(() => {
+    if (selectedPlayerId === 'all') return interventions;
+    return interventions.filter((item) => String(item.playerId) === String(selectedPlayerId));
+  }, [interventions, selectedPlayerId]);
 
-    if (selectedMetric.hydrationRisk >= 60) {
-      items.push('تفعيل بروتوكول ترطيب سريع ومراجعة الحرارة المحيطة.');
-    }
-
-    if (selectedMetric.fatigueScore >= 70) {
-      items.push('تقليل التسارعات القصوى وتعديل التموضع التكتيكي للاعب.');
-    }
-
-    return items;
-  }, [selectedMetric]);
+  const selectedMetric = filteredMetrics[0] || null;
 
   async function request(path, options) {
     const res = await fetch(`${API_ROOT}${path}`, options);
@@ -81,26 +102,56 @@ export default function App() {
     return res.json();
   }
 
-  async function loadSnapshot() {
-    const [playersData, metricsData, alertsData, dashboardData] = await Promise.all([
-      request('/api/players'),
-      request(
-        selectedPlayerId === 'all'
-          ? '/api/metrics/latest?limit=40'
-          : `/api/metrics/latest?playerId=${selectedPlayerId}&limit=40`
-      ),
-      request('/api/alerts?status=active&limit=30'),
-      request('/api/dashboard')
-    ]);
+  async function loadGlobalSnapshot() {
+    const [playersData, metricsData, alertsData, dashboardData, interventionsData, overviewData, scenarioData] =
+      await Promise.all([
+        request('/api/players'),
+        request('/api/metrics/latest?limit=60'),
+        request('/api/alerts?status=active&limit=60'),
+        request('/api/dashboard'),
+        request('/api/interventions?status=pending&limit=60'),
+        request('/api/analytics/overview'),
+        request('/api/simulation/scenarios')
+      ]);
 
     setPlayers(playersData);
     setMetrics(metricsData);
     setAlerts(alertsData);
     setDashboard(dashboardData);
+    setInterventions(interventionsData);
+    setOverview(overviewData);
+    setScenarios(scenarioData);
+  }
+
+  async function loadPlayerDepth(playerId) {
+    if (playerId === 'all') {
+      setPlayerProfile(null);
+      setSimulationCompare({ sessions: [], byScenario: [] });
+      return;
+    }
+
+    const [profileData, compareData] = await Promise.all([
+      request(`/api/players/${playerId}/profile`),
+      request(`/api/simulation/compare?playerId=${playerId}`)
+    ]);
+
+    setPlayerProfile(profileData);
+    setSimulationCompare(compareData);
+  }
+
+  async function loadActiveSimulations() {
+    const active = await request('/api/simulation/active');
+    setActiveSimulations(active);
+  }
+
+  async function refreshAll() {
+    await loadGlobalSnapshot();
+    await loadPlayerDepth(selectedPlayerId);
+    await loadActiveSimulations();
   }
 
   useEffect(() => {
-    loadSnapshot().catch((err) => setStreamState(`فشل التحميل: ${err.message}`));
+    refreshAll().catch((err) => setActionMessage(`فشل التحميل: ${err.message}`));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlayerId]);
 
@@ -111,17 +162,32 @@ export default function App() {
 
     source.addEventListener('metric', (event) => {
       const metric = JSON.parse(event.data);
-      setMetrics((prev) => {
-        const next = [metric, ...prev].slice(0, 100);
-        return selectedPlayerId === 'all'
-          ? next
-          : next.filter((item) => String(item.playerId) === String(selectedPlayerId));
-      });
+      setMetrics((prev) => [metric, ...prev].slice(0, 120));
     });
 
     source.addEventListener('alert', (event) => {
       const alert = JSON.parse(event.data);
-      setAlerts((prev) => [alert, ...prev].slice(0, 60));
+      setAlerts((prev) => [alert, ...prev].slice(0, 120));
+    });
+
+    source.addEventListener('intervention', (event) => {
+      const intervention = JSON.parse(event.data);
+      setInterventions((prev) => [intervention, ...prev].slice(0, 120));
+      setActionMessage(`تم إنشاء تدخل آلي: ${intervention.title}`);
+    });
+
+    source.addEventListener('intervention-executed', (event) => {
+      const payload = JSON.parse(event.data);
+      setInterventions((prev) => prev.map((item) => (item.id === payload.id ? payload : item)));
+    });
+
+    source.addEventListener('simulation-started', () => {
+      loadActiveSimulations().catch(() => {});
+    });
+
+    source.addEventListener('simulation-ended', () => {
+      loadActiveSimulations().catch(() => {});
+      loadPlayerDepth(selectedPlayerId).catch(() => {});
     });
 
     source.addEventListener('dashboard', (event) => {
@@ -136,14 +202,86 @@ export default function App() {
     return () => source.close();
   }, [selectedPlayerId]);
 
+  async function handleAutoInterventions() {
+    try {
+      const payload =
+        selectedPlayerId === 'all'
+          ? {}
+          : {
+              playerId: Number(selectedPlayerId)
+            };
+
+      const result = await request('/api/interventions/auto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      setActionMessage(`تم إنشاء ${result.createdCount} تدخل علاجي تلقائي`);
+      await refreshAll();
+    } catch (error) {
+      setActionMessage(error.message);
+    }
+  }
+
+  async function handleExecuteIntervention(id) {
+    try {
+      await request(`/api/interventions/${id}/execute`, { method: 'PATCH' });
+      setActionMessage('تم تنفيذ التدخل بنجاح');
+      await refreshAll();
+    } catch (error) {
+      setActionMessage(error.message);
+    }
+  }
+
+  async function handleStartSimulation(event) {
+    event.preventDefault();
+    if (selectedPlayerId === 'all') {
+      setActionMessage('اختر لاعبًا أولاً قبل تشغيل المحاكاة');
+      return;
+    }
+
+    try {
+      await request('/api/simulation/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: Number(selectedPlayerId),
+          scenario: simForm.scenario,
+          durationTicks: Number(simForm.durationTicks),
+          sleepHours: Number(simForm.sleepHours),
+          notes: simForm.notes
+        })
+      });
+
+      setActionMessage('تم تشغيل جلسة المحاكاة الرقمية');
+      await refreshAll();
+    } catch (error) {
+      setActionMessage(error.message);
+    }
+  }
+
+  async function handleStopSimulation(sessionId) {
+    try {
+      await request(`/api/simulation/stop/${sessionId}`, { method: 'POST' });
+      setActionMessage('تم إيقاف جلسة المحاكاة');
+      await refreshAll();
+    } catch (error) {
+      setActionMessage(error.message);
+    }
+  }
+
   return (
     <div className={`app mode-${mode}`}>
       <header className="shell topbar">
         <div>
-          <h1>منصة SPHCC</h1>
-          <p>مركز القيادة التنبؤية للصحة الرياضية - بث حي من الميدان</p>
+          <h1>SPHCC منصة القيادة التنبؤية الرياضية</h1>
+          <p>منصة ابتكار صحية تنافسية - تشغيل لحظي، تدخلات ذكية، ومحاكاة رقمية</p>
         </div>
-        <span className="pill">{streamState}</span>
+        <div className="top-meta">
+          <span className="pill">{streamState}</span>
+          <span className="mini-pill">{actionMessage}</span>
+        </div>
       </header>
 
       <main className="shell main-grid">
@@ -175,6 +313,15 @@ export default function App() {
               </option>
             ))}
           </select>
+
+          <div className="control-actions">
+            <button type="button" onClick={refreshAll}>
+              تحديث شامل
+            </button>
+            <button type="button" onClick={handleAutoInterventions}>
+              توليد تدخلات تلقائيًا
+            </button>
+          </div>
         </section>
 
         <section className="panel stats">
@@ -187,8 +334,12 @@ export default function App() {
             <strong>{dashboard.activeAlerts}</strong>
           </article>
           <article>
-            <span>متوسط المخاطر</span>
-            <strong>{fmtNum(dashboard.avgRisk)}</strong>
+            <span>تدخلات بانتظار التنفيذ</span>
+            <strong>{dashboard.interventionBacklog}</strong>
+          </article>
+          <article>
+            <span>جاهزية الفريق</span>
+            <strong>{fmtNum(dashboard.teamReadiness)}</strong>
           </article>
         </section>
 
@@ -214,73 +365,228 @@ export default function App() {
           </div>
         </section>
 
-        {mode === 'command' && (
-          <section className="panel table-wrap">
-            <h2>تيار القياسات المباشر</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>الوقت</th>
-                  <th>اللاعب</th>
-                  <th>نبض</th>
-                  <th>تسارع</th>
-                  <th>حرارة</th>
-                  <th>إجهاد</th>
-                  <th>إصابة</th>
-                  <th>جفاف</th>
-                  <th>كلي</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.map((metric) => (
-                  <tr key={metric.id}>
-                    <td>{fmtTime(metric.createdAt)}</td>
-                    <td>{metric.playerName}</td>
-                    <td>{metric.heartRate}</td>
-                    <td>{metric.acceleration}</td>
-                    <td>{metric.temperature}</td>
-                    <td>{fmtNum(metric.fatigueScore)}</td>
-                    <td>{fmtNum(metric.injuryRisk)}</td>
-                    <td>{fmtNum(metric.hydrationRisk)}</td>
-                    <td>{fmtNum(metric.overallRisk)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+        {mode === 'executive' && (
+          <ExecutiveView
+            overview={overview}
+            dashboard={dashboard}
+            selectedMetric={selectedMetric}
+            fmtNum={fmtNum}
+            fmtTime={fmtTime}
+          />
         )}
 
-        {mode === 'executive' && (
-          <section className="panel executive">
-            <h2>الملخص التنفيذي</h2>
-            <p>
-              {selectedMetric
-                ? `آخر تحديث للاعب ${selectedMetric.playerName} عند ${fmtTime(selectedMetric.createdAt)}.`
-                : 'في انتظار أول قياس حي من الملعب.'}
-            </p>
-            <ul>
-              <li>التنبيهات الحرجة الحالية: {alerts.filter((a) => a.severity === 'critical').length}</li>
-              <li>تنبيهات عالية: {alerts.filter((a) => a.severity === 'high').length}</li>
-              <li>جاهزية البث: {streamState}</li>
-            </ul>
-          </section>
+        {mode === 'command' && (
+          <>
+            <section className="panel table-wrap">
+              <h2>تيار القياسات المباشر</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>الوقت</th>
+                    <th>اللاعب</th>
+                    <th>نبض</th>
+                    <th>تسارع</th>
+                    <th>حرارة</th>
+                    <th>إجهاد</th>
+                    <th>إصابة</th>
+                    <th>جفاف</th>
+                    <th>كلي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMetrics.slice(0, 40).map((metric) => (
+                    <tr key={metric.id}>
+                      <td>{fmtTime(metric.createdAt)}</td>
+                      <td>{metric.playerName}</td>
+                      <td>{metric.heartRate}</td>
+                      <td>{metric.acceleration}</td>
+                      <td>{metric.temperature}</td>
+                      <td>{fmtNum(metric.fatigueScore)}</td>
+                      <td>{fmtNum(metric.injuryRisk)}</td>
+                      <td>{fmtNum(metric.hydrationRisk)}</td>
+                      <td>{fmtNum(metric.overallRisk)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+
+            <section className="panel">
+              <h2>طابور التدخلات الطبية الذكية</h2>
+              <ul className="list">
+                {filteredInterventions.map((item) => (
+                  <li key={item.id} className="intervention-item">
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.playerName}</span>
+                      <p>{item.rationale}</p>
+                    </div>
+                    <div className="intervention-meta">
+                      <em>أولوية {item.priority}</em>
+                      {item.status === 'pending' ? (
+                        <button type="button" onClick={() => handleExecuteIntervention(item.id)}>
+                          تنفيذ
+                        </button>
+                      ) : (
+                        <span className="done">تم التنفيذ</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
         )}
 
         {mode === 'tactical' && (
-          <section className="panel tactical">
-            <h2>توصيات تكتيكية بالذكاء الاصطناعي</h2>
-            <ul>
-              {tacticalPlan.map((item, idx) => (
-                <li key={`${item}-${idx}`}>{item}</li>
-              ))}
-            </ul>
-          </section>
+          <>
+            <section className="panel split tactical">
+              <article>
+                <h2>مساعد القرار التكتيكي</h2>
+                <ul className="list clean">
+                  {(playerProfile?.tacticalAdvice || ['اختر لاعبًا لمشاهدة التوصيات']).map((line, idx) => (
+                    <li key={`${line}-${idx}`}>{line}</li>
+                  ))}
+                </ul>
+              </article>
+              <article>
+                <h2>ملف اللاعب الذكي</h2>
+                {playerProfile ? (
+                  <ul className="list clean">
+                    <li>
+                      <span>اللاعب</span>
+                      <strong>{playerProfile.player.name}</strong>
+                    </li>
+                    <li>
+                      <span>جاهزية اللاعب</span>
+                      <strong>{fmtNum(playerProfile.readiness)}</strong>
+                    </li>
+                    <li>
+                      <span>آخر تحديث</span>
+                      <strong>{fmtTime(playerProfile.latestMetric?.createdAt)}</strong>
+                    </li>
+                  </ul>
+                ) : (
+                  <p>اختر لاعبًا لعرض الملف الذكي.</p>
+                )}
+              </article>
+            </section>
+
+            <section className="panel split">
+              <article>
+                <h2>مختبر السيناريوهات الرقمية</h2>
+                <form className="sim-form" onSubmit={handleStartSimulation}>
+                  <label htmlFor="scenario">السيناريو</label>
+                  <select
+                    id="scenario"
+                    value={simForm.scenario}
+                    onChange={(event) =>
+                      setSimForm((prev) => ({
+                        ...prev,
+                        scenario: event.target.value
+                      }))
+                    }
+                  >
+                    {scenarios.map((scenario) => (
+                      <option key={scenario.key} value={scenario.key}>
+                        {scenario.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="ticks">مدة المحاكاة (Ticks)</label>
+                  <input
+                    id="ticks"
+                    type="number"
+                    min="5"
+                    max="120"
+                    value={simForm.durationTicks}
+                    onChange={(event) =>
+                      setSimForm((prev) => ({
+                        ...prev,
+                        durationTicks: event.target.value
+                      }))
+                    }
+                  />
+
+                  <label htmlFor="sleep">ساعات النوم المتوقعة</label>
+                  <input
+                    id="sleep"
+                    type="number"
+                    min="3"
+                    max="9"
+                    step="0.1"
+                    value={simForm.sleepHours}
+                    onChange={(event) =>
+                      setSimForm((prev) => ({
+                        ...prev,
+                        sleepHours: event.target.value
+                      }))
+                    }
+                  />
+
+                  <label htmlFor="notes">ملاحظات</label>
+                  <input
+                    id="notes"
+                    type="text"
+                    value={simForm.notes}
+                    onChange={(event) =>
+                      setSimForm((prev) => ({
+                        ...prev,
+                        notes: event.target.value
+                      }))
+                    }
+                  />
+
+                  <button type="submit">تشغيل محاكاة</button>
+                </form>
+              </article>
+
+              <article>
+                <h2>المحاكاة النشطة</h2>
+                <ul className="list clean">
+                  {activeSimulations.length === 0 && <li>لا توجد جلسات نشطة</li>}
+                  {activeSimulations.map((session) => (
+                    <li key={session.id}>
+                      <span>
+                        {session.scenario} - {session.ticks}/{session.maxTicks}
+                      </span>
+                      <button type="button" onClick={() => handleStopSimulation(session.id)}>
+                        إيقاف
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </section>
+
+            <section className="panel">
+              <h2>مقارنة أثر السيناريوهات</h2>
+              <ul className="list clean three bars">
+                {simulationCompare.byScenario.map((row) => (
+                  <li key={row.scenario}>
+                    <div>
+                      <span>{compareLabel(scenarios, row.scenario)}</span>
+                      <small>عدد التشغيلات: {row.runs}</small>
+                    </div>
+                    <strong>{fmtNum(row.avgOverallRisk)}</strong>
+                    <div className="bar-track">
+                      <div
+                        className="bar-fill"
+                        style={{ width: `${Math.min(100, Number(row.avgOverallRisk))}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
         )}
 
         <section className="panel alerts">
           <h2>لوحة التنبيهات</h2>
-          <ul>
-            {alerts.map((alert) => (
+          <ul className="list">
+            {filteredAlerts.slice(0, 40).map((alert) => (
               <li key={alert.id} className={alert.severity || 'moderate'}>
                 <div>
                   <strong>{alert.playerName}</strong>
