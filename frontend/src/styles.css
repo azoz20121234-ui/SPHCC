@@ -415,6 +415,18 @@ th {
   background: var(--accent);
 }
 
+.bar-fill.continue {
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.match-impact .curve-list li {
+  align-items: center;
+}
+
+.match-impact .curve-list small {
+  color: var(--muted);
+}
+
 .alerts li {
   border: 1px solid var(--line);
   border-radius: 14px;

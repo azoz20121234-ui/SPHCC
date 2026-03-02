@@ -36,6 +36,7 @@ import {
   calculateReadiness
 } from './services/innovation.js';
 import { runDecisionEngine } from './services/aiDecisionEngine.js';
+import { buildMatchImpact } from './services/matchImpactEngine.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -377,6 +378,9 @@ app.get('/api/players/:id/profile', (req, res) => {
     latestMetric: latest,
     tacticalAdvice: buildTacticalAdvice(latest),
     decisionNow: latest ? runDecisionEngine(latest) : null,
+    matchImpact: latest
+      ? buildMatchImpact(latest, mapTwinToPayload(getPlayerTwinProfile(playerId)))
+      : null,
     trend: trend.reverse()
   };
 
@@ -416,6 +420,29 @@ app.get('/api/decision/now', (req, res) => {
     playerName: metric.playerName,
     metric,
     decision
+  });
+});
+
+app.get('/api/match-impact', (req, res) => {
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const metricRow = playerId
+    ? getLatestMetricForPlayer(playerId)
+    : listRecentMetrics({ limit: 1 })[0];
+
+  if (!metricRow) {
+    return res.status(404).json({ error: 'no live metric available yet' });
+  }
+
+  const metric = mapMetricToPayload(metricRow);
+  const twin = mapTwinToPayload(getPlayerTwinProfile(metric.playerId));
+  const impact = buildMatchImpact(metric, twin);
+
+  return res.json({
+    playerId: metric.playerId,
+    playerName: metric.playerName,
+    metric,
+    digitalTwin: twin,
+    impact
   });
 });
 

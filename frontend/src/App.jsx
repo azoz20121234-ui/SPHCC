@@ -65,6 +65,7 @@ export default function App() {
 
   const [playerProfile, setPlayerProfile] = useState(null);
   const [decisionCenter, setDecisionCenter] = useState(null);
+  const [matchImpact, setMatchImpact] = useState(null);
   const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
   const [activeSimulations, setActiveSimulations] = useState([]);
   const [scenarios, setScenarios] = useState([]);
@@ -129,19 +130,22 @@ export default function App() {
     if (playerId === 'all') {
       setPlayerProfile(null);
       setDecisionCenter(null);
+      setMatchImpact(null);
       setSimulationCompare({ sessions: [], byScenario: [] });
       return;
     }
 
-    const [profileData, compareData, decisionData] = await Promise.all([
+    const [profileData, compareData, decisionData, matchImpactData] = await Promise.all([
       request(`/api/players/${playerId}/profile`),
       request(`/api/simulation/compare?playerId=${playerId}`),
-      request(`/api/decision/now?playerId=${playerId}`)
+      request(`/api/decision/now?playerId=${playerId}`),
+      request(`/api/match-impact?playerId=${playerId}`)
     ]);
 
     setPlayerProfile(profileData);
     setSimulationCompare(compareData);
     setDecisionCenter(decisionData);
+    setMatchImpact(matchImpactData);
   }
 
   async function loadActiveSimulations() {
@@ -447,6 +451,53 @@ export default function App() {
         {mode === 'tactical' && (
           <>
             <TacticalDecisionCenter decisionData={decisionCenter} fmtNum={fmtNum} />
+
+            <section className="panel match-impact">
+              <h2>تحليل تأثير المباراة</h2>
+              {matchImpact ? (
+                <>
+                  <div className="decision-impact-grid">
+                    <article>
+                      <span>{matchImpact.impact.continueFiveMinutes.label}</span>
+                      <strong>{fmtNum(matchImpact.impact.continueFiveMinutes.projectedRisk)}%</strong>
+                      <small>
+                        تأثير الفوز: {fmtNum(matchImpact.impact.continueFiveMinutes.winProbability)}%
+                      </small>
+                    </article>
+                    <article>
+                      <span>{matchImpact.impact.substituteNow.label}</span>
+                      <strong>{fmtNum(matchImpact.impact.substituteNow.projectedRisk)}%</strong>
+                      <small>
+                        تأثير الفوز: {fmtNum(matchImpact.impact.substituteNow.winProbability)}%
+                      </small>
+                    </article>
+                  </div>
+                  <p className="muted">
+                    Delta احتمالية الفوز: <b>{fmtNum(matchImpact.impact.deltaWinProbability)}%</b>
+                  </p>
+                  <ul className="list clean curve-list">
+                    {matchImpact.impact.riskEscalationCurve.map((point) => (
+                      <li key={point.minute}>
+                        <div>
+                          <strong>دقيقة {point.minute}</strong>
+                          <small>
+                            استمرار: {fmtNum(point.continueRisk)}% | تبديل: {fmtNum(point.substituteRisk)}%
+                          </small>
+                        </div>
+                        <div className="bar-track">
+                          <div
+                            className="bar-fill continue"
+                            style={{ width: `${Math.min(100, Number(point.continueRisk))}%` }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="muted">اختر لاعبًا لعرض تحليل تأثير المباراة.</p>
+              )}
+            </section>
 
             <section className="panel split tactical">
               <article>
