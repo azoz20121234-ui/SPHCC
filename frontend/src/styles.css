@@ -1,8 +1,9 @@
 :root {
   --bg: #f5f7fa;
-  --card: #ffffff;
+  --card: rgba(255, 255, 255, 0.92);
+  --card-solid: #ffffff;
   --line: rgba(0, 0, 0, 0.06);
-  --text: #0f172a;
+  --text: #1d1d1f;
   --muted: #6b7280;
   --accent: #2563eb;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
@@ -15,7 +16,10 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(1000px 380px at 8% -10%, rgba(37, 99, 235, 0.08) 0%, transparent 65%),
+    radial-gradient(900px 340px at 95% -8%, rgba(30, 64, 175, 0.07) 0%, transparent 65%),
+    var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', sans-serif;
 }
@@ -28,12 +32,12 @@ body {
 .topbar {
   margin-top: 18px;
   margin-bottom: 16px;
-  padding: 24px;
+  padding: 26px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
   box-shadow: var(--shadow);
   display: flex;
   align-items: flex-start;
@@ -44,7 +48,7 @@ body {
 .topbar h1 {
   margin: 0;
   font-size: clamp(2rem, 3vw, 2.5rem);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -0.02em;
 }
 
@@ -64,7 +68,7 @@ body {
 .mini-pill {
   border: 1px solid rgba(37, 99, 235, 0.2);
   color: #1d4ed8;
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 999px;
   padding: 8px 12px;
   font-size: 0.88rem;
@@ -85,6 +89,8 @@ body {
   box-shadow: var(--shadow);
   padding: 24px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
 }
 
 .panel:hover,
@@ -108,7 +114,7 @@ body {
 }
 
 .segmented {
-  background: #eef2f7;
+  background: #eef1f5;
   border-radius: 999px;
   padding: 4px;
   display: inline-flex;
@@ -128,9 +134,9 @@ body {
 }
 
 .segmented button.active {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   color: var(--accent);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
 select,
@@ -144,14 +150,14 @@ input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--card-solid);
   color: var(--text);
   padding: 11px 12px;
 }
 
 button {
   border: 0;
-  background: var(--accent);
+  background: linear-gradient(180deg, #3b82f6 0%, var(--accent) 100%);
   color: #fff;
   border-radius: 12px;
   padding: 10px 14px;
@@ -175,7 +181,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
-  background: #fff;
+  background: var(--card-solid);
 }
 
 .stats span {
@@ -206,7 +212,7 @@ h4 {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px;
-  background: #fff;
+  background: var(--card-solid);
 }
 
 .gauge span {
@@ -270,7 +276,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
-  background: #fff;
+  background: var(--card-solid);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -295,7 +301,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
-  background: #fff;
+  background: var(--card-solid);
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -343,7 +349,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px;
-  background: #fff;
+  background: var(--card-solid);
 }
 
 .decision-hero h3 {
@@ -376,7 +382,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
-  background: #fff;
+  background: var(--card-solid);
 }
 
 .decision-impact-grid span,
@@ -413,7 +419,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
-  background: #fff;
+  background: var(--card-solid);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -435,9 +441,9 @@ th {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(170%) blur(18px);
+  -webkit-backdrop-filter: saturate(170%) blur(18px);
 }
 
 .exec-hero {
