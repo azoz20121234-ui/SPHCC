@@ -37,6 +37,7 @@ import {
 } from './services/innovation.js';
 import { runDecisionEngine } from './services/aiDecisionEngine.js';
 import { buildMatchImpact } from './services/matchImpactEngine.js';
+import { buildFinancialExposure } from './services/financialExposureEngine.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -370,17 +371,19 @@ app.get('/api/players/:id/profile', (req, res) => {
 
   const trend = listMetricTrendForPlayer(playerId, 20).map(mapMetricToPayload);
   const latest = trend[0] || null;
+  const twin = mapTwinToPayload(getPlayerTwinProfile(playerId));
+  const matchImpact = latest ? buildMatchImpact(latest, twin) : null;
+  const financialExposure = latest ? buildFinancialExposure(latest, matchImpact, twin) : null;
 
   const profile = {
     player,
-    digitalTwin: mapTwinToPayload(getPlayerTwinProfile(playerId)),
+    digitalTwin: twin,
     readiness: calculateReadiness(latest),
     latestMetric: latest,
     tacticalAdvice: buildTacticalAdvice(latest),
     decisionNow: latest ? runDecisionEngine(latest) : null,
-    matchImpact: latest
-      ? buildMatchImpact(latest, mapTwinToPayload(getPlayerTwinProfile(playerId)))
-      : null,
+    matchImpact,
+    financialExposure,
     trend: trend.reverse()
   };
 
@@ -443,6 +446,30 @@ app.get('/api/match-impact', (req, res) => {
     metric,
     digitalTwin: twin,
     impact
+  });
+});
+
+app.get('/api/financial/exposure', (req, res) => {
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const metricRow = playerId
+    ? getLatestMetricForPlayer(playerId)
+    : listRecentMetrics({ limit: 1 })[0];
+
+  if (!metricRow) {
+    return res.status(404).json({ error: 'no live metric available yet' });
+  }
+
+  const metric = mapMetricToPayload(metricRow);
+  const twin = mapTwinToPayload(getPlayerTwinProfile(metric.playerId));
+  const impact = buildMatchImpact(metric, twin);
+  const exposure = buildFinancialExposure(metric, impact, twin);
+
+  return res.json({
+    playerId: metric.playerId,
+    playerName: metric.playerName,
+    metric,
+    digitalTwin: twin,
+    exposure
   });
 });
 

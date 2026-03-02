@@ -66,6 +66,7 @@ export default function App() {
   const [playerProfile, setPlayerProfile] = useState(null);
   const [decisionCenter, setDecisionCenter] = useState(null);
   const [matchImpact, setMatchImpact] = useState(null);
+  const [financialExposure, setFinancialExposure] = useState(null);
   const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
   const [activeSimulations, setActiveSimulations] = useState([]);
   const [scenarios, setScenarios] = useState([]);
@@ -132,20 +133,28 @@ export default function App() {
       setDecisionCenter(null);
       setMatchImpact(null);
       setSimulationCompare({ sessions: [], byScenario: [] });
+      try {
+        const financialData = await request('/api/financial/exposure');
+        setFinancialExposure(financialData);
+      } catch (_error) {
+        setFinancialExposure(null);
+      }
       return;
     }
 
-    const [profileData, compareData, decisionData, matchImpactData] = await Promise.all([
+    const [profileData, compareData, decisionData, matchImpactData, financialData] = await Promise.all([
       request(`/api/players/${playerId}/profile`),
       request(`/api/simulation/compare?playerId=${playerId}`),
       request(`/api/decision/now?playerId=${playerId}`),
-      request(`/api/match-impact?playerId=${playerId}`)
+      request(`/api/match-impact?playerId=${playerId}`),
+      request(`/api/financial/exposure?playerId=${playerId}`)
     ]);
 
     setPlayerProfile(profileData);
     setSimulationCompare(compareData);
     setDecisionCenter(decisionData);
     setMatchImpact(matchImpactData);
+    setFinancialExposure(financialData);
   }
 
   async function loadActiveSimulations() {
@@ -380,6 +389,7 @@ export default function App() {
             dashboard={dashboard}
             selectedMetric={selectedMetric}
             playerProfile={playerProfile}
+            financialExposure={financialExposure}
             fmtNum={fmtNum}
             fmtTime={fmtTime}
           />

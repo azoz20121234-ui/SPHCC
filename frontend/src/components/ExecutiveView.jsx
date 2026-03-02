@@ -9,13 +9,13 @@ export default function ExecutiveView({
   dashboard,
   selectedMetric,
   playerProfile,
+  financialExposure,
   fmtNum,
   fmtTime
 }) {
-  const financialRisk = buildRiskClass(Number(dashboard.avgRisk || 0));
-  const estimatedInjuryCost = Math.round(
-    Number(dashboard.activeAlerts || 0) * 12500 + Number(dashboard.avgRisk || 0) * 1800
-  );
+  const exposure = financialExposure?.exposure || null;
+  const financialRisk = buildRiskClass(Number(exposure?.exposureScore || dashboard.avgRisk || 0));
+  const estimatedInjuryCost = Math.round(Number(exposure?.estimatedInjuryCost || 0));
 
   const kpis = [
     {
@@ -119,9 +119,19 @@ export default function ExecutiveView({
         <article className="card glass financial-panel">
           <h4>Financial Risk</h4>
           <div className="money">SAR {estimatedInjuryCost.toLocaleString('en-US')}</div>
-          <p>Estimated injury cost for current risk exposure.</p>
+          <p>التكلفة المتوقعة خلال 30 يوم: SAR {(exposure?.expectedCost30Days || 0).toLocaleString('en-US')}</p>
+          <ul className="financial-kpis">
+            <li>
+              <span>أيام الغياب المتوقعة</span>
+              <strong>{fmtNum(exposure?.expectedAbsenceDays)}</strong>
+            </li>
+            <li>
+              <span>خسارة قيمة المباراة</span>
+              <strong>SAR {(exposure?.matchValueLoss || 0).toLocaleString('en-US')}</strong>
+            </li>
+          </ul>
           <div className={`risk-chip ${financialRisk.className}`}>
-            {financialRisk.label} Risk Classification
+            {(exposure?.classification || financialRisk.label).toUpperCase()} Risk Classification
           </div>
         </article>
       </section>

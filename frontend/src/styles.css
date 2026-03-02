@@ -581,6 +581,28 @@ th {
   margin: 8px 0;
 }
 
+.financial-kpis {
+  margin: 10px 0 12px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.financial-kpis li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: var(--card-solid);
+}
+
+.financial-kpis span {
+  color: var(--muted);
+}
+
 .risk-chip {
   width: fit-content;
   padding: 8px 12px;
