@@ -1,24 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-
-function clamp(value, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function normalizeAcceleration(acceleration) {
-  return clamp(((Number(acceleration || 0) - 0.7) / (5.5 - 0.7)) * 100);
-}
-
-function computeNeuralLoad(selectedMetric, decisionData) {
-  if (decisionData?.decision?.inputs?.neuralLoad !== undefined) {
-    return Number(decisionData.decision.inputs.neuralLoad);
-  }
-
-  const fatigueScore = Number(selectedMetric?.fatigueScore || 0);
-  const accelerationFactor = normalizeAcceleration(selectedMetric?.acceleration) * 0.38;
-  const fatigueFactor = fatigueScore * 0.44;
-  const sleepDebt = clamp((8 - Number(selectedMetric?.sleepHours || 0)) * 14);
-  return Number(clamp(fatigueFactor + accelerationFactor + sleepDebt).toFixed(1));
-}
+import { clamp, computeNeuralLoad } from '../utils/riskMath.js';
 
 function colorForLoad(value) {
   if (value >= 82) return '#dc2626';

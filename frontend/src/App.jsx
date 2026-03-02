@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ExecutiveView from './components/ExecutiveView.jsx';
 import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
 import HeatMapComponent from './components/HeatMapComponent.jsx';
+import CountdownToBreakdown from './components/CountdownToBreakdown.jsx';
 
 const queryApiRoot = new URLSearchParams(window.location.search).get('api');
 if (queryApiRoot) {
@@ -472,6 +473,11 @@ export default function App() {
         {mode === 'tactical' && (
           <>
             <TacticalDecisionCenter decisionData={decisionCenter} fmtNum={fmtNum} />
+            <CountdownToBreakdown
+              selectedMetric={selectedMetric}
+              decisionData={decisionCenter}
+              matchImpact={matchImpact}
+            />
             <HeatMapComponent selectedMetric={selectedMetric} decisionData={decisionCenter} />
 
             <section className="panel match-impact">
