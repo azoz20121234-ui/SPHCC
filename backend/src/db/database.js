@@ -14,6 +14,21 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function getDb() {
+  return db || initDatabase();
+}
+
+function hasColumn(tableName, columnName) {
+  const columns = getDb().prepare(`PRAGMA table_info(${tableName})`).all();
+  return columns.some((col) => col.name === columnName);
+}
+
+function ensureColumn(tableName, columnName, alterStatement) {
+  if (!hasColumn(tableName, columnName)) {
+    getDb().exec(alterStatement);
+  }
+}
+
 export function initDatabase() {
   if (db) {
     return db;
@@ -70,6 +85,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS simulation_sessions (
       id TEXT PRIMARY KEY,
       player_id INTEGER NOT NULL,
+      scenario TEXT NOT NULL DEFAULT 'balanced',
       status TEXT NOT NULL,
       started_at TEXT NOT NULL,
       ended_at TEXT,
@@ -80,16 +96,34 @@ export function initDatabase() {
       FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS interventions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id INTEGER NOT NULL,
+      metric_id INTEGER,
+      protocol_key TEXT NOT NULL,
+      title TEXT NOT NULL,
+      rationale TEXT NOT NULL,
+      priority INTEGER NOT NULL DEFAULT 50,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      executed_at TEXT,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+      FOREIGN KEY (metric_id) REFERENCES metrics(id) ON DELETE SET NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_metrics_player_created ON metrics(player_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_alerts_status_created ON alerts(status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_simulation_player_started ON simulation_sessions(player_id, started_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_interventions_status_created ON interventions(status, created_at DESC);
   `);
 
-  return db;
-}
+  ensureColumn(
+    'simulation_sessions',
+    'scenario',
+    "ALTER TABLE simulation_sessions ADD COLUMN scenario TEXT NOT NULL DEFAULT 'balanced'"
+  );
 
-function getDb() {
-  return db || initDatabase();
+  return db;
 }
 
 export function listPlayers() {
@@ -173,6 +207,10 @@ export function createMetric(payload) {
   return getDb().prepare('SELECT * FROM metrics WHERE id = ?').get(result.lastInsertRowid);
 }
 
+export function getMetricById(metricId) {
+  return getDb().prepare('SELECT * FROM metrics WHERE id = ?').get(Number(metricId));
+}
+
 export function listRecentMetrics({ playerId, limit = 30 } = {}) {
   if (playerId) {
     return getDb()
@@ -181,6 +219,33 @@ export function listRecentMetrics({ playerId, limit = 30 } = {}) {
   }
 
   return getDb().prepare('SELECT * FROM metrics ORDER BY id DESC LIMIT ?').all(Number(limit));
+}
+
+export function getLatestMetricForPlayer(playerId) {
+  return getDb()
+    .prepare('SELECT * FROM metrics WHERE player_id = ? ORDER BY id DESC LIMIT 1')
+    .get(Number(playerId));
+}
+
+export function listLatestMetricPerPlayer() {
+  return getDb()
+    .prepare(
+      `SELECT m.*
+       FROM metrics m
+       INNER JOIN (
+         SELECT player_id, MAX(id) AS max_id
+         FROM metrics
+         GROUP BY player_id
+       ) latest ON latest.max_id = m.id
+       ORDER BY m.player_id ASC`
+    )
+    .all();
+}
+
+export function listMetricTrendForPlayer(playerId, limit = 20) {
+  return getDb()
+    .prepare('SELECT * FROM metrics WHERE player_id = ? ORDER BY id DESC LIMIT ?')
+    .all(Number(playerId), Number(limit));
 }
 
 export function createAlert({ playerId, metricId, severity, riskScore, message }) {
@@ -219,18 +284,114 @@ export function resolveAlert(alertId) {
   return getDb().prepare('SELECT * FROM alerts WHERE id = ?').get(Number(alertId));
 }
 
-export function createSimulationSession({ id, playerId, notes }) {
+export function createIntervention({
+  playerId,
+  metricId,
+  protocolKey,
+  title,
+  rationale,
+  priority = 50
+}) {
+  const result = getDb()
+    .prepare(
+      `INSERT INTO interventions
+      (player_id, metric_id, protocol_key, title, rationale, priority, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
+    )
+    .run(
+      Number(playerId),
+      metricId ? Number(metricId) : null,
+      protocolKey,
+      title,
+      rationale,
+      Number(priority),
+      nowIso()
+    );
+
+  return getDb().prepare('SELECT * FROM interventions WHERE id = ?').get(result.lastInsertRowid);
+}
+
+export function findRecentPendingIntervention({ playerId, protocolKey, windowMinutes = 30 }) {
+  const threshold = new Date(Date.now() - Number(windowMinutes) * 60 * 1000).toISOString();
+  return getDb()
+    .prepare(
+      `SELECT * FROM interventions
+       WHERE player_id = ?
+         AND protocol_key = ?
+         AND status = 'pending'
+         AND created_at >= ?
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(Number(playerId), protocolKey, threshold);
+}
+
+export function listInterventions({ status = 'pending', playerId, limit = 50 } = {}) {
+  if (playerId && status !== 'all') {
+    return getDb()
+      .prepare(
+        `SELECT * FROM interventions
+         WHERE player_id = ? AND status = ?
+         ORDER BY priority DESC, id DESC LIMIT ?`
+      )
+      .all(Number(playerId), status, Number(limit));
+  }
+
+  if (playerId) {
+    return getDb()
+      .prepare(
+        `SELECT * FROM interventions
+         WHERE player_id = ?
+         ORDER BY priority DESC, id DESC LIMIT ?`
+      )
+      .all(Number(playerId), Number(limit));
+  }
+
+  if (status === 'all') {
+    return getDb()
+      .prepare('SELECT * FROM interventions ORDER BY priority DESC, id DESC LIMIT ?')
+      .all(Number(limit));
+  }
+
+  return getDb()
+    .prepare(
+      `SELECT * FROM interventions
+       WHERE status = ?
+       ORDER BY priority DESC, id DESC LIMIT ?`
+    )
+    .all(status, Number(limit));
+}
+
+export function executeIntervention(interventionId) {
   getDb()
     .prepare(
-      `INSERT INTO simulation_sessions (id, player_id, status, started_at, notes)
-       VALUES (?, ?, 'running', ?, ?)`
+      `UPDATE interventions
+       SET status = 'executed', executed_at = ?
+       WHERE id = ?`
     )
-    .run(id, Number(playerId), nowIso(), notes || null);
+    .run(nowIso(), Number(interventionId));
+
+  return getDb().prepare('SELECT * FROM interventions WHERE id = ?').get(Number(interventionId));
+}
+
+export function createSimulationSession({ id, playerId, scenario = 'balanced', notes }) {
+  getDb()
+    .prepare(
+      `INSERT INTO simulation_sessions (id, player_id, scenario, status, started_at, notes)
+       VALUES (?, ?, ?, 'running', ?, ?)`
+    )
+    .run(id, Number(playerId), scenario, nowIso(), notes || null);
 
   return getDb().prepare('SELECT * FROM simulation_sessions WHERE id = ?').get(id);
 }
 
-export function completeSimulationSession({ id, ticks, avgOverallRisk, finalFatigue, status = 'completed' }) {
+export function completeSimulationSession({
+  id,
+  ticks,
+  avgOverallRisk,
+  finalFatigue,
+  status = 'completed'
+}) {
   getDb()
     .prepare(
       `UPDATE simulation_sessions

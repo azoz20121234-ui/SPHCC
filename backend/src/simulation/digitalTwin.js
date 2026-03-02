@@ -8,48 +8,110 @@ function random(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+export const SCENARIO_PROFILES = {
+  balanced: {
+    key: 'balanced',
+    label: 'مباراة متوازنة',
+    fatigueDrift: [1.5, 3.8],
+    accelerationBoost: 0,
+    temperatureBoost: 0,
+    sleepPenalty: 0
+  },
+  intense: {
+    key: 'intense',
+    label: 'ضغط تنافسي عالٍ',
+    fatigueDrift: [2.5, 5.2],
+    accelerationBoost: 0.35,
+    temperatureBoost: 0.28,
+    sleepPenalty: 0.4
+  },
+  heatwave: {
+    key: 'heatwave',
+    label: 'أجواء حارة ورطبة',
+    fatigueDrift: [2.1, 4.7],
+    accelerationBoost: 0.15,
+    temperatureBoost: 0.65,
+    sleepPenalty: 0.2
+  }
+};
+
+function resolveScenario(profileKey) {
+  return SCENARIO_PROFILES[profileKey] || SCENARIO_PROFILES.balanced;
+}
+
 export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, onComplete }) {
   const activeSessions = new Map();
 
-  function start({ playerId, durationTicks = 45, sleepHours = 6.6, notes = null }) {
+  function start({
+    playerId,
+    durationTicks = 45,
+    sleepHours = 6.6,
+    scenario = 'balanced',
+    notes = null
+  }) {
     const player = getPlayerById(playerId);
     if (!player) {
       return { error: 'player not found' };
     }
 
+    const scenarioProfile = resolveScenario(scenario);
     const sessionId = randomUUID();
+
     const state = {
       id: sessionId,
       playerId: player.id,
+      scenario: scenarioProfile.key,
       ticks: 0,
       maxTicks: Number(durationTicks),
-      sleepHours: Number(sleepHours),
+      sleepHours: Number(sleepHours) - scenarioProfile.sleepPenalty,
       fatigueBase: random(22, 38),
       risks: []
     };
 
-    const dbSession = onStart({ id: sessionId, playerId: player.id, notes });
+    const dbSession = onStart({
+      id: sessionId,
+      playerId: player.id,
+      scenario: scenarioProfile.key,
+      notes
+    });
+
     if (!dbSession) {
       return { error: 'failed to create simulation session' };
     }
 
     state.timer = setInterval(() => {
       state.ticks += 1;
-      state.fatigueBase = clamp(state.fatigueBase + random(1.6, 4.8), 15, 99);
+      state.fatigueBase = clamp(
+        state.fatigueBase + random(...scenarioProfile.fatigueDrift),
+        15,
+        99
+      );
 
-      const heartRate = clamp(player.resting_hr + state.fatigueBase * 1.28 + random(-5, 8), 50, player.max_hr + 10);
-      const acceleration = clamp(1.0 + state.fatigueBase * 0.033 + random(-0.16, 0.24), 0.4, 5.9);
-      const temperature = clamp(36.4 + state.fatigueBase * 0.026 + random(-0.12, 0.2), 35.9, 40.6);
+      const heartRate = clamp(
+        player.resting_hr + state.fatigueBase * 1.28 + random(-5, 8),
+        50,
+        player.max_hr + 10
+      );
+      const acceleration = clamp(
+        1.0 + state.fatigueBase * 0.033 + random(-0.16, 0.24) + scenarioProfile.accelerationBoost,
+        0.4,
+        6.2
+      );
+      const temperature = clamp(
+        36.4 + state.fatigueBase * 0.026 + random(-0.12, 0.2) + scenarioProfile.temperatureBoost,
+        35.9,
+        41.2
+      );
 
       const metric = onMetric({
         playerId: player.id,
         sessionId,
-        source: 'simulation',
+        source: `simulation:${scenarioProfile.key}`,
         input: {
           heartRate: Number(heartRate.toFixed(1)),
           acceleration: Number(acceleration.toFixed(2)),
           temperature: Number(temperature.toFixed(1)),
-          sleepHours: state.sleepHours
+          sleepHours: Number(clamp(state.sleepHours, 3.0, 9.5).toFixed(1))
         }
       });
 
@@ -67,10 +129,12 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
     return {
       id: sessionId,
       playerId: player.id,
+      scenario: scenarioProfile.key,
+      scenarioLabel: scenarioProfile.label,
       status: 'running',
       ticks: 0,
       maxTicks: state.maxTicks,
-      sleepHours: state.sleepHours,
+      sleepHours: Number(clamp(state.sleepHours, 3.0, 9.5).toFixed(1)),
       notes
     };
   }
@@ -102,9 +166,10 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
     return [...activeSessions.values()].map((state) => ({
       id: state.id,
       playerId: state.playerId,
+      scenario: state.scenario,
       ticks: state.ticks,
       maxTicks: state.maxTicks,
-      sleepHours: state.sleepHours
+      sleepHours: Number(clamp(state.sleepHours, 3.0, 9.5).toFixed(1))
     }));
   }
 

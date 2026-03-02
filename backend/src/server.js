@@ -6,12 +6,20 @@ import { fileURLToPath } from 'node:url';
 import {
   completeSimulationSession,
   createAlert,
+  createIntervention,
   createMetric,
   createPlayer,
   createSimulationSession,
+  executeIntervention,
+  findRecentPendingIntervention,
+  getLatestMetricForPlayer,
+  getMetricById,
   getPlayerById,
   initDatabase,
   listAlerts,
+  listInterventions,
+  listLatestMetricPerPlayer,
+  listMetricTrendForPlayer,
   listPlayers,
   listRecentMetrics,
   listSimulationSessions,
@@ -19,7 +27,13 @@ import {
   seedPlayersIfEmpty
 } from './db/database.js';
 import { calculatePredictiveRisk } from './riskEngine.js';
-import { createDigitalTwinSimulation } from './simulation/digitalTwin.js';
+import { SCENARIO_PROFILES, createDigitalTwinSimulation } from './simulation/digitalTwin.js';
+import {
+  buildCompetitiveOverview,
+  buildInterventionDrafts,
+  buildTacticalAdvice,
+  calculateReadiness
+} from './services/innovation.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -79,6 +93,58 @@ function mapMetricToPayload(metricRow) {
   };
 }
 
+function mapAlertToPayload(alertRow) {
+  const player = getPlayerById(alertRow.player_id);
+  return {
+    id: alertRow.id,
+    playerId: alertRow.player_id,
+    playerName: player?.name || 'Unknown player',
+    metricId: alertRow.metric_id,
+    severity: alertRow.severity,
+    riskScore: alertRow.risk_score,
+    message: alertRow.message,
+    status: alertRow.status,
+    createdAt: alertRow.created_at,
+    resolvedAt: alertRow.resolved_at
+  };
+}
+
+function mapInterventionToPayload(interventionRow) {
+  const player = getPlayerById(interventionRow.player_id);
+  const metric = interventionRow.metric_id ? getMetricById(interventionRow.metric_id) : null;
+  return {
+    id: interventionRow.id,
+    playerId: interventionRow.player_id,
+    playerName: player?.name || 'Unknown player',
+    metricId: interventionRow.metric_id,
+    protocolKey: interventionRow.protocol_key,
+    title: interventionRow.title,
+    rationale: interventionRow.rationale,
+    priority: interventionRow.priority,
+    status: interventionRow.status,
+    createdAt: interventionRow.created_at,
+    executedAt: interventionRow.executed_at,
+    linkedRisk: metric?.overall_risk ?? null
+  };
+}
+
+function mapSimulationSession(row) {
+  const player = getPlayerById(row.player_id);
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    playerName: player?.name || 'Unknown player',
+    scenario: row.scenario,
+    status: row.status,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    ticks: row.ticks,
+    avgOverallRisk: row.avg_overall_risk,
+    finalFatigue: row.final_fatigue,
+    notes: row.notes
+  };
+}
+
 function buildLiveInput(player) {
   const current = fatigueState.get(player.id) ?? random(24, 42);
   const nextFatigue = clamp(current + random(-2.5, 4.5), 16, 96);
@@ -95,6 +161,38 @@ function buildLiveInput(player) {
     temperature: Number(temperature.toFixed(1)),
     sleepHours: Number(sleepHours.toFixed(1))
   };
+}
+
+function maybeCreateInterventions(metricPayload) {
+  const drafts = buildInterventionDrafts(metricPayload);
+  const created = [];
+
+  drafts.forEach((draft) => {
+    const exists = findRecentPendingIntervention({
+      playerId: metricPayload.playerId,
+      protocolKey: draft.protocolKey,
+      windowMinutes: 35
+    });
+
+    if (exists) {
+      return;
+    }
+
+    const row = createIntervention({
+      playerId: metricPayload.playerId,
+      metricId: metricPayload.id,
+      protocolKey: draft.protocolKey,
+      title: draft.title,
+      rationale: draft.rationale,
+      priority: draft.priority
+    });
+
+    const payload = mapInterventionToPayload(row);
+    created.push(payload);
+    broadcast('intervention', payload);
+  });
+
+  return created;
 }
 
 function ingestMetric({ playerId, sessionId = null, source = 'live-feed', input }) {
@@ -122,36 +220,34 @@ function ingestMetric({ playerId, sessionId = null, source = 'live-feed', input 
   const metricPayload = mapMetricToPayload(metricRow);
   broadcast('metric', metricPayload);
 
+  let alertPayload = null;
   if (prediction.overallRisk >= ALERT_THRESHOLD) {
-    const alert = createAlert({
+    const alertRow = createAlert({
       playerId: player.id,
       metricId: metricRow.id,
       severity: prediction.severity || toSeverity(prediction.overallRisk),
       riskScore: prediction.overallRisk,
       message: `${player.name} high risk detected (${prediction.overallRisk})`
     });
-
-    broadcast('alert', {
-      id: alert.id,
-      playerId: alert.player_id,
-      playerName: player.name,
-      metricId: alert.metric_id,
-      severity: alert.severity,
-      riskScore: alert.risk_score,
-      message: alert.message,
-      status: alert.status,
-      createdAt: alert.created_at
-    });
+    alertPayload = mapAlertToPayload(alertRow);
+    broadcast('alert', alertPayload);
   }
 
-  return metricPayload;
+  const interventions = maybeCreateInterventions(metricPayload);
+
+  return {
+    ...metricPayload,
+    alert: alertPayload,
+    interventions
+  };
 }
 
 const simulation = createDigitalTwinSimulation({
   getPlayerById,
   onMetric: ({ playerId, sessionId, source, input }) =>
     ingestMetric({ playerId, sessionId, source, input }),
-  onStart: ({ id, playerId, notes }) => createSimulationSession({ id, playerId, notes }),
+  onStart: ({ id, playerId, scenario, notes }) =>
+    createSimulationSession({ id, playerId, scenario, notes }),
   onComplete: ({ id, status, ticks, avgOverallRisk, finalFatigue }) =>
     completeSimulationSession({ id, status, ticks, avgOverallRisk, finalFatigue })
 });
@@ -159,15 +255,33 @@ const simulation = createDigitalTwinSimulation({
 function buildDashboard() {
   const metrics = listRecentMetrics({ limit: 80 });
   const activeAlerts = listAlerts({ status: 'active', limit: 200 });
+  const pendingInterventions = listInterventions({ status: 'pending', limit: 300 });
   const avgRisk =
     metrics.length === 0
       ? 0
       : metrics.reduce((sum, item) => sum + Number(item.overall_risk), 0) / metrics.length;
 
+  const latestByPlayer = listLatestMetricPerPlayer();
+  const readinessValues = latestByPlayer.map((item) =>
+    calculateReadiness({
+      overallRisk: item.overall_risk,
+      fatigueScore: item.fatigue_score,
+      hydrationRisk: item.hydration_risk,
+      injuryRisk: item.injury_risk
+    })
+  );
+
+  const teamReadiness =
+    readinessValues.length === 0
+      ? 0
+      : Number((readinessValues.reduce((sum, val) => sum + val, 0) / readinessValues.length).toFixed(1));
+
   return {
     playersCount: listPlayers().length,
     activeAlerts: activeAlerts.length,
     avgRisk: Number(avgRisk.toFixed(1)),
+    interventionBacklog: pendingInterventions.length,
+    teamReadiness,
     latestMetricAt: metrics[0]?.created_at || null
   };
 }
@@ -202,6 +316,21 @@ app.get('/api/dashboard', (_req, res) => {
   res.json(buildDashboard());
 });
 
+app.get('/api/analytics/overview', (_req, res) => {
+  const players = listPlayers();
+  const latestRows = listLatestMetricPerPlayer();
+  const latestMap = new Map(latestRows.map((row) => [row.player_id, mapMetricToPayload(row)]));
+
+  const dataRows = players.map((player) => ({
+    player,
+    metric: latestMap.get(player.id) || null
+  }));
+
+  const pending = listInterventions({ status: 'pending', limit: 300 });
+  const overview = buildCompetitiveOverview(dataRows, pending.map(mapInterventionToPayload));
+  res.json(overview);
+});
+
 app.get('/api/players', (_req, res) => {
   res.json(listPlayers());
 });
@@ -214,6 +343,27 @@ app.post('/api/players', (req, res) => {
 
   const player = createPlayer({ name, sport, position, age, restingHr, maxHr });
   return res.status(201).json(player);
+});
+
+app.get('/api/players/:id/profile', (req, res) => {
+  const playerId = Number(req.params.id);
+  const player = getPlayerById(playerId);
+  if (!player) {
+    return res.status(404).json({ error: 'player not found' });
+  }
+
+  const trend = listMetricTrendForPlayer(playerId, 20).map(mapMetricToPayload);
+  const latest = trend[0] || null;
+
+  const profile = {
+    player,
+    readiness: calculateReadiness(latest),
+    latestMetric: latest,
+    tacticalAdvice: buildTacticalAdvice(latest),
+    trend: trend.reverse()
+  };
+
+  res.json(profile);
 });
 
 app.get('/api/metrics/latest', (req, res) => {
@@ -254,29 +404,89 @@ app.post('/api/metrics', (req, res) => {
 app.get('/api/alerts', (req, res) => {
   const status = String(req.query.status || 'active');
   const limit = Number(req.query.limit || 40);
-  const alerts = listAlerts({ status, limit }).map((item) => {
-    const player = getPlayerById(item.player_id);
-    return {
-      id: item.id,
-      playerId: item.player_id,
-      playerName: player?.name || 'Unknown player',
-      metricId: item.metric_id,
-      severity: item.severity,
-      riskScore: item.risk_score,
-      message: item.message,
-      status: item.status,
-      createdAt: item.created_at,
-      resolvedAt: item.resolved_at
-    };
+  res.json(listAlerts({ status, limit }).map(mapAlertToPayload));
+});
+
+app.patch('/api/alerts/:id/resolve', (req, res) => {
+  const alert = resolveAlert(Number(req.params.id));
+  if (!alert) {
+    return res.status(404).json({ error: 'alert not found' });
+  }
+
+  const payload = mapAlertToPayload(alert);
+  broadcast('alert-resolved', payload);
+  return res.json(payload);
+});
+
+app.get('/api/interventions', (req, res) => {
+  const status = String(req.query.status || 'pending');
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const limit = Number(req.query.limit || 50);
+  const rows = listInterventions({ status, playerId, limit });
+  res.json(rows.map(mapInterventionToPayload));
+});
+
+app.post('/api/interventions/auto', (req, res) => {
+  const playerId = req.body?.playerId ? Number(req.body.playerId) : undefined;
+  const targetPlayers = playerId ? [getPlayerById(playerId)].filter(Boolean) : listPlayers();
+
+  const created = [];
+  targetPlayers.forEach((player) => {
+    const latest = getLatestMetricForPlayer(player.id);
+    if (!latest) {
+      return;
+    }
+
+    const payload = mapMetricToPayload(latest);
+    const interventions = maybeCreateInterventions(payload);
+    created.push(...interventions);
   });
 
-  res.json(alerts);
+  res.status(201).json({ createdCount: created.length, interventions: created });
+});
+
+app.patch('/api/interventions/:id/execute', (req, res) => {
+  const executed = executeIntervention(Number(req.params.id));
+  if (!executed) {
+    return res.status(404).json({ error: 'intervention not found' });
+  }
+
+  const payload = mapInterventionToPayload(executed);
+  broadcast('intervention-executed', payload);
+  return res.json(payload);
+});
+
+app.get('/api/simulation/scenarios', (_req, res) => {
+  res.json(Object.values(SCENARIO_PROFILES));
 });
 
 app.get('/api/simulation/sessions', (req, res) => {
   const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
   const limit = Number(req.query.limit || 20);
-  res.json(listSimulationSessions({ playerId, limit }));
+  const sessions = listSimulationSessions({ playerId, limit }).map(mapSimulationSession);
+  res.json(sessions);
+});
+
+app.get('/api/simulation/compare', (req, res) => {
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const sessions = listSimulationSessions({ playerId, limit: 10 }).map(mapSimulationSession);
+
+  const byScenario = Object.values(SCENARIO_PROFILES).map((scenario) => {
+    const matched = sessions.filter((item) => item.scenario === scenario.key);
+    const avgRisk =
+      matched.length === 0
+        ? 0
+        : matched.reduce((sum, item) => sum + Number(item.avgOverallRisk || 0), 0) / matched.length;
+
+    return {
+      scenario: scenario.key,
+      label: scenario.label,
+      runs: matched.length,
+      avgOverallRisk: Number(avgRisk.toFixed(1))
+    };
+  });
+
+  res.json({ sessions, byScenario });
 });
 
 app.get('/api/simulation/active', (_req, res) => {
@@ -284,12 +494,19 @@ app.get('/api/simulation/active', (_req, res) => {
 });
 
 app.post('/api/simulation/start', (req, res) => {
-  const { playerId, durationTicks, sleepHours, notes } = req.body;
+  const { playerId, durationTicks, sleepHours, scenario, notes } = req.body;
   if (!playerId) {
     return res.status(400).json({ error: 'playerId is required' });
   }
 
-  const started = simulation.start({ playerId, durationTicks, sleepHours, notes });
+  const started = simulation.start({
+    playerId,
+    durationTicks,
+    sleepHours,
+    scenario,
+    notes
+  });
+
   if (started?.error) {
     return res.status(404).json({ error: started.error });
   }
@@ -304,31 +521,8 @@ app.post('/api/simulation/stop/:sessionId', (req, res) => {
     return res.status(404).json({ error: 'session not found or already finished' });
   }
 
-  broadcast('simulation-ended', finished);
-  return res.json(finished);
-});
-
-app.patch('/api/alerts/:id/resolve', (req, res) => {
-  const alert = resolveAlert(Number(req.params.id));
-  if (!alert) {
-    return res.status(404).json({ error: 'alert not found' });
-  }
-
-  const player = getPlayerById(alert.player_id);
-  const payload = {
-    id: alert.id,
-    playerId: alert.player_id,
-    playerName: player?.name || 'Unknown player',
-    metricId: alert.metric_id,
-    severity: alert.severity,
-    riskScore: alert.risk_score,
-    message: alert.message,
-    status: alert.status,
-    createdAt: alert.created_at,
-    resolvedAt: alert.resolved_at
-  };
-
-  broadcast('alert-resolved', payload);
+  const payload = mapSimulationSession(finished);
+  broadcast('simulation-ended', payload);
   return res.json(payload);
 });
 
@@ -341,7 +535,8 @@ app.get('/live', (req, res) => {
   const hello = {
     connectedAt: new Date().toISOString(),
     intervalMs: LIVE_INTERVAL_MS,
-    threshold: ALERT_THRESHOLD
+    threshold: ALERT_THRESHOLD,
+    features: ['analytics', 'interventions', 'simulation-scenarios']
   };
 
   res.write(`event: connected\ndata: ${JSON.stringify(hello)}\n\n`);
