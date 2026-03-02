@@ -1,4 +1,8 @@
-const API_ROOT = localStorage.getItem('sphcc_api_root') || 'http://localhost:4000';
+const queryApiRoot = new URLSearchParams(window.location.search).get('api');
+if (queryApiRoot) {
+  localStorage.setItem('sphcc_api_root', queryApiRoot);
+}
+const API_ROOT = queryApiRoot || localStorage.getItem('sphcc_api_root') || 'http://localhost:4000';
 
 const playerSelect = document.getElementById('playerSelect');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -37,10 +41,10 @@ async function api(path, options) {
 }
 
 function pickGaugeColor(score) {
-  if (score >= 80) return '#ff4d6d';
-  if (score >= 60) return '#ffb703';
-  if (score >= 35) return '#ffd166';
-  return '#00e5ff';
+  if (score >= 80) return '#ff3b30';
+  if (score >= 60) return '#ff9f0a';
+  if (score >= 35) return '#ffd60a';
+  return '#0071e3';
 }
 
 function setGauge(el, value) {
