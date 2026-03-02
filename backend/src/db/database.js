@@ -67,8 +67,22 @@ export function initDatabase() {
       FOREIGN KEY (metric_id) REFERENCES metrics(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS simulation_sessions (
+      id TEXT PRIMARY KEY,
+      player_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      ticks INTEGER NOT NULL DEFAULT 0,
+      avg_overall_risk REAL DEFAULT 0,
+      final_fatigue REAL DEFAULT 0,
+      notes TEXT,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_metrics_player_created ON metrics(player_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_alerts_status_created ON alerts(status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_simulation_player_started ON simulation_sessions(player_id, started_at DESC);
   `);
 
   return db;
@@ -203,4 +217,58 @@ export function resolveAlert(alertId) {
     .run('resolved', nowIso(), Number(alertId));
 
   return getDb().prepare('SELECT * FROM alerts WHERE id = ?').get(Number(alertId));
+}
+
+export function createSimulationSession({ id, playerId, notes }) {
+  getDb()
+    .prepare(
+      `INSERT INTO simulation_sessions (id, player_id, status, started_at, notes)
+       VALUES (?, ?, 'running', ?, ?)`
+    )
+    .run(id, Number(playerId), nowIso(), notes || null);
+
+  return getDb().prepare('SELECT * FROM simulation_sessions WHERE id = ?').get(id);
+}
+
+export function completeSimulationSession({ id, ticks, avgOverallRisk, finalFatigue, status = 'completed' }) {
+  getDb()
+    .prepare(
+      `UPDATE simulation_sessions
+       SET status = ?,
+           ended_at = ?,
+           ticks = ?,
+           avg_overall_risk = ?,
+           final_fatigue = ?
+       WHERE id = ?`
+    )
+    .run(status, nowIso(), Number(ticks), Number(avgOverallRisk), Number(finalFatigue), id);
+
+  return getDb().prepare('SELECT * FROM simulation_sessions WHERE id = ?').get(id);
+}
+
+export function stopSimulationSession(id) {
+  getDb()
+    .prepare(
+      `UPDATE simulation_sessions
+       SET status = 'stopped',
+           ended_at = ?
+       WHERE id = ? AND status = 'running'`
+    )
+    .run(nowIso(), id);
+
+  return getDb().prepare('SELECT * FROM simulation_sessions WHERE id = ?').get(id);
+}
+
+export function listSimulationSessions({ playerId, limit = 30 } = {}) {
+  if (playerId) {
+    return getDb()
+      .prepare(
+        'SELECT * FROM simulation_sessions WHERE player_id = ? ORDER BY started_at DESC LIMIT ?'
+      )
+      .all(Number(playerId), Number(limit));
+  }
+
+  return getDb()
+    .prepare('SELECT * FROM simulation_sessions ORDER BY started_at DESC LIMIT ?')
+    .all(Number(limit));
 }

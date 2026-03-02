@@ -1,18 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import {
+  completeSimulationSession,
   createAlert,
   createMetric,
   createPlayer,
+  createSimulationSession,
   getPlayerById,
   initDatabase,
   listAlerts,
   listPlayers,
   listRecentMetrics,
+  listSimulationSessions,
   resolveAlert,
   seedPlayersIfEmpty
 } from './db/database.js';
 import { calculatePredictiveRisk } from './riskEngine.js';
+import { createDigitalTwinSimulation } from './simulation/digitalTwin.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -134,6 +138,15 @@ function ingestMetric({ playerId, sessionId = null, source = 'live-feed', input 
   return metricPayload;
 }
 
+const simulation = createDigitalTwinSimulation({
+  getPlayerById,
+  onMetric: ({ playerId, sessionId, source, input }) =>
+    ingestMetric({ playerId, sessionId, source, input }),
+  onStart: ({ id, playerId, notes }) => createSimulationSession({ id, playerId, notes }),
+  onComplete: ({ id, status, ticks, avgOverallRisk, finalFatigue }) =>
+    completeSimulationSession({ id, status, ticks, avgOverallRisk, finalFatigue })
+});
+
 function buildDashboard() {
   const metrics = listRecentMetrics({ limit: 80 });
   const activeAlerts = listAlerts({ status: 'active', limit: 200 });
@@ -249,6 +262,41 @@ app.get('/api/alerts', (req, res) => {
   });
 
   res.json(alerts);
+});
+
+app.get('/api/simulation/sessions', (req, res) => {
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const limit = Number(req.query.limit || 20);
+  res.json(listSimulationSessions({ playerId, limit }));
+});
+
+app.get('/api/simulation/active', (_req, res) => {
+  res.json(simulation.listActive());
+});
+
+app.post('/api/simulation/start', (req, res) => {
+  const { playerId, durationTicks, sleepHours, notes } = req.body;
+  if (!playerId) {
+    return res.status(400).json({ error: 'playerId is required' });
+  }
+
+  const started = simulation.start({ playerId, durationTicks, sleepHours, notes });
+  if (started?.error) {
+    return res.status(404).json({ error: started.error });
+  }
+
+  broadcast('simulation-started', started);
+  return res.status(201).json(started);
+});
+
+app.post('/api/simulation/stop/:sessionId', (req, res) => {
+  const finished = simulation.stop(req.params.sessionId, 'stopped');
+  if (!finished) {
+    return res.status(404).json({ error: 'session not found or already finished' });
+  }
+
+  broadcast('simulation-ended', finished);
+  return res.json(finished);
 });
 
 app.patch('/api/alerts/:id/resolve', (req, res) => {
