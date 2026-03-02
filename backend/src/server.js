@@ -38,6 +38,7 @@ import {
 import { runDecisionEngine } from './services/aiDecisionEngine.js';
 import { buildMatchImpact } from './services/matchImpactEngine.js';
 import { buildFinancialExposure } from './services/financialExposureEngine.js';
+import { buildSeasonForecast } from './services/seasonForecastModel.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -374,6 +375,7 @@ app.get('/api/players/:id/profile', (req, res) => {
   const twin = mapTwinToPayload(getPlayerTwinProfile(playerId));
   const matchImpact = latest ? buildMatchImpact(latest, twin) : null;
   const financialExposure = latest ? buildFinancialExposure(latest, matchImpact, twin) : null;
+  const seasonForecast = latest ? buildSeasonForecast(latest, twin, { matches: 20 }) : null;
 
   const profile = {
     player,
@@ -384,6 +386,7 @@ app.get('/api/players/:id/profile', (req, res) => {
     decisionNow: latest ? runDecisionEngine(latest) : null,
     matchImpact,
     financialExposure,
+    seasonForecast,
     trend: trend.reverse()
   };
 
@@ -470,6 +473,29 @@ app.get('/api/financial/exposure', (req, res) => {
     metric,
     digitalTwin: twin,
     exposure
+  });
+});
+
+app.get('/api/season/forecast', (req, res) => {
+  const playerId = req.query.playerId ? Number(req.query.playerId) : undefined;
+  const metricRow = playerId
+    ? getLatestMetricForPlayer(playerId)
+    : listRecentMetrics({ limit: 1 })[0];
+
+  if (!metricRow) {
+    return res.status(404).json({ error: 'no live metric available yet' });
+  }
+
+  const metric = mapMetricToPayload(metricRow);
+  const twin = mapTwinToPayload(getPlayerTwinProfile(metric.playerId));
+  const forecast = buildSeasonForecast(metric, twin, { matches: 20 });
+
+  return res.json({
+    playerId: metric.playerId,
+    playerName: metric.playerName,
+    metric,
+    digitalTwin: twin,
+    forecast
   });
 });
 

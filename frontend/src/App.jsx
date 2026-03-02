@@ -16,7 +16,8 @@ const API_ROOT =
 const MODES = {
   executive: 'تنفيذي',
   command: 'مركز قيادة حي',
-  tactical: 'تكتيكي بالذكاء الاصطناعي'
+  tactical: 'تكتيكي بالذكاء الاصطناعي',
+  season: 'توقع الموسم'
 };
 
 function fmtNum(value) {
@@ -67,6 +68,7 @@ export default function App() {
   const [decisionCenter, setDecisionCenter] = useState(null);
   const [matchImpact, setMatchImpact] = useState(null);
   const [financialExposure, setFinancialExposure] = useState(null);
+  const [seasonForecast, setSeasonForecast] = useState(null);
   const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
   const [activeSimulations, setActiveSimulations] = useState([]);
   const [scenarios, setScenarios] = useState([]);
@@ -134,27 +136,35 @@ export default function App() {
       setMatchImpact(null);
       setSimulationCompare({ sessions: [], byScenario: [] });
       try {
-        const financialData = await request('/api/financial/exposure');
+        const [financialData, seasonData] = await Promise.all([
+          request('/api/financial/exposure'),
+          request('/api/season/forecast')
+        ]);
         setFinancialExposure(financialData);
+        setSeasonForecast(seasonData);
       } catch (_error) {
         setFinancialExposure(null);
+        setSeasonForecast(null);
       }
       return;
     }
 
-    const [profileData, compareData, decisionData, matchImpactData, financialData] = await Promise.all([
-      request(`/api/players/${playerId}/profile`),
-      request(`/api/simulation/compare?playerId=${playerId}`),
-      request(`/api/decision/now?playerId=${playerId}`),
-      request(`/api/match-impact?playerId=${playerId}`),
-      request(`/api/financial/exposure?playerId=${playerId}`)
-    ]);
+    const [profileData, compareData, decisionData, matchImpactData, financialData, seasonData] =
+      await Promise.all([
+        request(`/api/players/${playerId}/profile`),
+        request(`/api/simulation/compare?playerId=${playerId}`),
+        request(`/api/decision/now?playerId=${playerId}`),
+        request(`/api/match-impact?playerId=${playerId}`),
+        request(`/api/financial/exposure?playerId=${playerId}`),
+        request(`/api/season/forecast?playerId=${playerId}`)
+      ]);
 
     setPlayerProfile(profileData);
     setSimulationCompare(compareData);
     setDecisionCenter(decisionData);
     setMatchImpact(matchImpactData);
     setFinancialExposure(financialData);
+    setSeasonForecast(seasonData);
   }
 
   async function loadActiveSimulations() {
@@ -648,6 +658,80 @@ export default function App() {
                   </li>
                 ))}
               </ul>
+            </section>
+          </>
+        )}
+
+        {mode === 'season' && (
+          <>
+            <section className="panel split season-summary">
+              <article>
+                <h2>ملخص توقع الموسم</h2>
+                {seasonForecast ? (
+                  <ul className="list clean">
+                    <li>
+                      <span>عدد المباريات المحاكاة</span>
+                      <strong>{seasonForecast.forecast.totalMatches}</strong>
+                    </li>
+                    <li>
+                      <span>متوسط احتمالية الإصابة</span>
+                      <strong>{fmtNum(seasonForecast.forecast.avgInjuryProbability)}%</strong>
+                    </li>
+                    <li>
+                      <span>ذروة الإجهاد</span>
+                      <strong>
+                        مباراة {seasonForecast.forecast.peakStrain?.match} (
+                        {fmtNum(seasonForecast.forecast.peakStrain?.strain)})
+                      </strong>
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="muted">اختر لاعبًا لبدء توقع الموسم.</p>
+                )}
+              </article>
+              <article>
+                <h2>أفضل نوافذ الراحة</h2>
+                <ul className="list clean">
+                  {(seasonForecast?.forecast?.bestRestWindows || []).map((window) => (
+                    <li key={`rest-${window.match}`}>
+                      <span>المباراة {window.match}</span>
+                      <strong>{window.reason}</strong>
+                    </li>
+                  ))}
+                  {(!seasonForecast?.forecast?.bestRestWindows ||
+                    seasonForecast.forecast.bestRestWindows.length === 0) && (
+                    <li>
+                      <span>لا توجد نافذة حرجة حالياً</span>
+                    </li>
+                  )}
+                </ul>
+              </article>
+            </section>
+
+            <section className="panel table-wrap">
+              <h2>توقع 20 مباراة</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>المباراة</th>
+                    <th>الإجهاد</th>
+                    <th>إجهاد حراري</th>
+                    <th>احتمالية الإصابة</th>
+                    <th>توصية</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(seasonForecast?.forecast?.matches || []).map((row) => (
+                    <tr key={`season-${row.match}`}>
+                      <td>{row.match}</td>
+                      <td>{fmtNum(row.fatigue)}%</td>
+                      <td>{fmtNum(row.heatStress)}%</td>
+                      <td>{fmtNum(row.injuryProbability)}%</td>
+                      <td>{row.recommendation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           </>
         )}

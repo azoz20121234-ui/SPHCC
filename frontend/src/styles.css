@@ -427,6 +427,10 @@ th {
   color: var(--muted);
 }
 
+.season-summary .list.clean li {
+  min-height: 52px;
+}
+
 .alerts li {
   border: 1px solid var(--line);
   border-radius: 14px;
