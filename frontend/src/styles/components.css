@@ -298,6 +298,52 @@
   gap: 8px;
 }
 
+.scenario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.scenario-list {
+  display: grid;
+  gap: 12px;
+}
+
+.scenario-item {
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.scenario-item.best {
+  border-color: rgba(0, 113, 227, 0.35);
+  background: rgba(0, 113, 227, 0.05);
+}
+
+.scenario-item header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.scenario-item em {
+  font-style: normal;
+  color: var(--text-secondary);
+  font-size: .86rem;
+}
+
+.scenario-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  font-size: .9rem;
+}
+
 .season-curve {
   margin-top: 14px;
   display: grid;
@@ -376,5 +422,14 @@
 
   .season-injury-map {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .scenario-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scenario-metrics {
+    grid-template-columns: 1fr;
   }
 }

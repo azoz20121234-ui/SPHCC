@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import CountdownToBreakdown from '../components/CountdownToBreakdown.jsx';
 import HeatMapComponent from '../components/HeatMapComponent.jsx';
+import TacticalScenarioBoard from '../components/TacticalScenarioBoard.jsx';
 import TimelineProjection from '../components/TimelineProjection.jsx';
+import { buildDecisionScenarios } from '../engine/decisionScenarioEngine.js';
 import { useSimulation } from '../utils/SimulationContext.jsx';
 
 function round(value, digits = 1) {
@@ -37,6 +39,8 @@ export default function TacticalLive() {
       projectedWin: round(projectedWin)
     };
   }, [loadCut, selectedMetric]);
+
+  const decisionScenarios = useMemo(() => buildDecisionScenarios(selectedMetric), [selectedMetric]);
 
   return (
     <section className="page fade-in">
@@ -94,6 +98,8 @@ export default function TacticalLive() {
           </div>
         </article>
       </div>
+
+      <TacticalScenarioBoard scenarios={decisionScenarios} />
 
       <CountdownToBreakdown
         selectedMetric={selectedMetric}
