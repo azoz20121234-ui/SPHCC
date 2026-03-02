@@ -39,7 +39,13 @@ function resolveScenario(profileKey) {
   return SCENARIO_PROFILES[profileKey] || SCENARIO_PROFILES.balanced;
 }
 
-export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, onComplete }) {
+export function createDigitalTwinSimulation({
+  getPlayerById,
+  getPlayerTwinProfile,
+  onMetric,
+  onStart,
+  onComplete
+}) {
   const activeSessions = new Map();
 
   function start({
@@ -53,9 +59,16 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
     if (!player) {
       return { error: 'player not found' };
     }
+    const twinProfile = getPlayerTwinProfile?.(player.id);
 
     const scenarioProfile = resolveScenario(scenario);
     const sessionId = randomUUID();
+    const traits = {
+      recoverySpeed: Number(twinProfile?.recovery_speed || 1),
+      injurySensitivity: Number(twinProfile?.injury_sensitivity || 1),
+      neuralFatigueFactor: Number(twinProfile?.neural_fatigue_factor || 1),
+      heatFactor: Number(twinProfile?.heat_factor || 1)
+    };
 
     const state = {
       id: sessionId,
@@ -63,9 +76,13 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
       scenario: scenarioProfile.key,
       ticks: 0,
       maxTicks: Number(durationTicks),
-      sleepHours: Number(sleepHours) - scenarioProfile.sleepPenalty,
+      sleepHours:
+        Number(sleepHours) -
+        scenarioProfile.sleepPenalty -
+        (traits.neuralFatigueFactor - 1) * 0.35,
       fatigueBase: random(22, 38),
-      risks: []
+      risks: [],
+      traits
     };
 
     const dbSession = onStart({
@@ -81,8 +98,21 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
 
     state.timer = setInterval(() => {
       state.ticks += 1;
+
+      const recoveryBuffer = clamp((state.traits.recoverySpeed - 1) * 1.7, -0.7, 0.8);
+      const neuralPressure = clamp((state.traits.neuralFatigueFactor - 1) * 1.5, -0.4, 0.8);
+      const injuryPressure = clamp((state.traits.injurySensitivity - 1) * 1.3, -0.4, 0.8);
+      const driftMin = Math.max(
+        0.7,
+        scenarioProfile.fatigueDrift[0] + injuryPressure + neuralPressure - recoveryBuffer
+      );
+      const driftMax = Math.max(
+        driftMin + 0.35,
+        scenarioProfile.fatigueDrift[1] + injuryPressure + neuralPressure - recoveryBuffer + 0.3
+      );
+
       state.fatigueBase = clamp(
-        state.fatigueBase + random(...scenarioProfile.fatigueDrift),
+        state.fatigueBase + random(driftMin, driftMax),
         15,
         99
       );
@@ -93,12 +123,20 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
         player.max_hr + 10
       );
       const acceleration = clamp(
-        1.0 + state.fatigueBase * 0.033 + random(-0.16, 0.24) + scenarioProfile.accelerationBoost,
+        1.0 +
+          state.fatigueBase * 0.033 +
+          random(-0.16, 0.24) +
+          scenarioProfile.accelerationBoost +
+          (state.traits.neuralFatigueFactor - 1) * 0.22,
         0.4,
         6.2
       );
       const temperature = clamp(
-        36.4 + state.fatigueBase * 0.026 + random(-0.12, 0.2) + scenarioProfile.temperatureBoost,
+        36.4 +
+          state.fatigueBase * 0.026 +
+          random(-0.12, 0.2) +
+          scenarioProfile.temperatureBoost +
+          (state.traits.heatFactor - 1) * 0.55,
         35.9,
         41.2
       );
@@ -135,6 +173,7 @@ export function createDigitalTwinSimulation({ getPlayerById, onMetric, onStart, 
       ticks: 0,
       maxTicks: state.maxTicks,
       sleepHours: Number(clamp(state.sleepHours, 3.0, 9.5).toFixed(1)),
+      traits,
       notes
     };
   }

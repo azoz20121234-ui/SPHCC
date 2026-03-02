@@ -532,6 +532,37 @@ th {
   margin-top: 8px;
 }
 
+.bio-panel ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.bio-panel li {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  background: var(--card-solid);
+}
+
+.bio-panel span {
+  display: block;
+}
+
+.bio-panel small {
+  color: var(--muted);
+}
+
+.bio-panel strong {
+  font-size: 1.2rem;
+}
+
 .financial-panel .money {
   font-size: clamp(1.6rem, 2.7vw, 2.1rem);
   font-weight: 700;

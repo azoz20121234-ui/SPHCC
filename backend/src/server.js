@@ -15,6 +15,7 @@ import {
   getLatestMetricForPlayer,
   getMetricById,
   getPlayerById,
+  getPlayerTwinProfile,
   initDatabase,
   listAlerts,
   listInterventions,
@@ -146,6 +147,18 @@ function mapSimulationSession(row) {
   };
 }
 
+function mapTwinToPayload(row) {
+  if (!row) return null;
+  return {
+    playerId: row.player_id,
+    recoverySpeed: Number(row.recovery_speed),
+    injurySensitivity: Number(row.injury_sensitivity),
+    neuralFatigueFactor: Number(row.neural_fatigue_factor),
+    heatFactor: Number(row.heat_factor),
+    updatedAt: row.updated_at
+  };
+}
+
 function buildLiveInput(player) {
   const current = fatigueState.get(player.id) ?? random(24, 42);
   const nextFatigue = clamp(current + random(-2.5, 4.5), 16, 96);
@@ -245,6 +258,7 @@ function ingestMetric({ playerId, sessionId = null, source = 'live-feed', input 
 
 const simulation = createDigitalTwinSimulation({
   getPlayerById,
+  getPlayerTwinProfile,
   onMetric: ({ playerId, sessionId, source, input }) =>
     ingestMetric({ playerId, sessionId, source, input }),
   onStart: ({ id, playerId, scenario, notes }) =>
@@ -358,6 +372,7 @@ app.get('/api/players/:id/profile', (req, res) => {
 
   const profile = {
     player,
+    digitalTwin: mapTwinToPayload(getPlayerTwinProfile(playerId)),
     readiness: calculateReadiness(latest),
     latestMetric: latest,
     tacticalAdvice: buildTacticalAdvice(latest),
@@ -366,6 +381,21 @@ app.get('/api/players/:id/profile', (req, res) => {
   };
 
   res.json(profile);
+});
+
+app.get('/api/players/:id/twin', (req, res) => {
+  const playerId = Number(req.params.id);
+  const player = getPlayerById(playerId);
+  if (!player) {
+    return res.status(404).json({ error: 'player not found' });
+  }
+
+  const twin = getPlayerTwinProfile(playerId);
+  return res.json({
+    playerId,
+    playerName: player.name,
+    twin: mapTwinToPayload(twin)
+  });
 });
 
 app.get('/api/decision/now', (req, res) => {

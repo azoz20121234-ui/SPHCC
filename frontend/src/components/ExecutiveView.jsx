@@ -4,7 +4,14 @@ function buildRiskClass(score) {
   return { label: 'Low', className: 'low' };
 }
 
-export default function ExecutiveView({ overview, dashboard, selectedMetric, fmtNum, fmtTime }) {
+export default function ExecutiveView({
+  overview,
+  dashboard,
+  selectedMetric,
+  playerProfile,
+  fmtNum,
+  fmtTime
+}) {
   const financialRisk = buildRiskClass(Number(dashboard.avgRisk || 0));
   const estimatedInjuryCost = Math.round(
     Number(dashboard.activeAlerts || 0) * 12500 + Number(dashboard.avgRisk || 0) * 1800
@@ -36,6 +43,32 @@ export default function ExecutiveView({ overview, dashboard, selectedMetric, fmt
       trend: `${Number(dashboard.interventionBacklog || 0) <= 3 ? '↓' : '↑'} سرعة الاستجابة`
     }
   ];
+
+  const bioSignature = playerProfile?.digitalTwin || null;
+  const bioRows = bioSignature
+    ? [
+        {
+          label: 'سرعة التعافي',
+          value: bioSignature.recoverySpeed,
+          hint: 'كلما ارتفع المؤشر زادت سرعة الاستشفاء'
+        },
+        {
+          label: 'حساسية الإصابة',
+          value: bioSignature.injurySensitivity,
+          hint: 'ارتفاعه يعني تأثرًا أكبر بالأحمال المفاجئة'
+        },
+        {
+          label: 'معامل الإرهاق العصبي',
+          value: bioSignature.neuralFatigueFactor,
+          hint: 'يقيس سرعة تراكم الإجهاد الذهني والحركي'
+        },
+        {
+          label: 'معامل الحرارة',
+          value: bioSignature.heatFactor,
+          hint: 'حساسية اللاعب للإجهاد الحراري أثناء المباراة'
+        }
+      ]
+    : [];
 
   return (
     <section className="executive-premium fade-in">
@@ -90,6 +123,32 @@ export default function ExecutiveView({ overview, dashboard, selectedMetric, fmt
           <div className={`risk-chip ${financialRisk.className}`}>
             {financialRisk.label} Risk Classification
           </div>
+        </article>
+      </section>
+
+      <section className="exec-panels">
+        <article className="card glass bio-panel">
+          <h4>البصمة البيولوجية للاعب</h4>
+          {bioSignature ? (
+            <>
+              <p className="muted">
+                ملف السمات الرقمية: <b>{playerProfile?.player?.name}</b>
+              </p>
+              <ul>
+                {bioRows.map((item) => (
+                  <li key={item.label}>
+                    <div>
+                      <span>{item.label}</span>
+                      <small>{item.hint}</small>
+                    </div>
+                    <strong>{fmtNum(item.value)}</strong>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="muted">اختر لاعبًا لعرض بصمته البيولوجية الرقمية.</p>
+          )}
         </article>
       </section>
 

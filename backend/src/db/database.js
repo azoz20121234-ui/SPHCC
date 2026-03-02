@@ -14,6 +14,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function getDb() {
   return db || initDatabase();
 }
@@ -111,6 +115,17 @@ export function initDatabase() {
       FOREIGN KEY (metric_id) REFERENCES metrics(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS player_digital_twin (
+      player_id INTEGER PRIMARY KEY,
+      recovery_speed REAL NOT NULL DEFAULT 1.0,
+      injury_sensitivity REAL NOT NULL DEFAULT 1.0,
+      neural_fatigue_factor REAL NOT NULL DEFAULT 1.0,
+      heat_factor REAL NOT NULL DEFAULT 1.0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_metrics_player_created ON metrics(player_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_alerts_status_created ON alerts(status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_simulation_player_started ON simulation_sessions(player_id, started_at DESC);
@@ -150,31 +165,137 @@ export function createPlayer({ name, sport, position, age, restingHr = 58, maxHr
     created_at: nowIso()
   });
 
-  return getPlayerById(result.lastInsertRowid);
+  const player = getPlayerById(result.lastInsertRowid);
+  upsertPlayerTwinProfile({
+    playerId: player.id,
+    ...buildDefaultTwinProfile(player)
+  });
+  return player;
 }
 
 export function seedPlayersIfEmpty() {
   const count = getDb().prepare('SELECT COUNT(*) AS count FROM players').get().count;
-  if (count > 0) {
-    return;
+  if (count === 0) {
+    createPlayer({
+      name: 'Khaled Nasser',
+      sport: 'Football',
+      position: 'Midfielder',
+      age: 24,
+      restingHr: 56,
+      maxHr: 193
+    });
+
+    createPlayer({
+      name: 'Fahad Salem',
+      sport: 'Basketball',
+      position: 'Guard',
+      age: 21,
+      restingHr: 60,
+      maxHr: 197
+    });
   }
 
-  createPlayer({
-    name: 'Khaled Nasser',
-    sport: 'Football',
-    position: 'Midfielder',
-    age: 24,
-    restingHr: 56,
-    maxHr: 193
-  });
+  ensureTwinProfilesForAllPlayers();
+}
 
-  createPlayer({
-    name: 'Fahad Salem',
-    sport: 'Basketball',
-    position: 'Guard',
-    age: 21,
-    restingHr: 60,
-    maxHr: 197
+function buildDefaultTwinProfile(player) {
+  const sport = String(player?.sport || '').toLowerCase();
+  const age = Number(player?.age || 24);
+
+  const base = {
+    recoverySpeed: 1.0,
+    injurySensitivity: 1.0,
+    neuralFatigueFactor: 1.0,
+    heatFactor: 1.0
+  };
+
+  if (sport.includes('football')) {
+    base.recoverySpeed = 0.97;
+    base.injurySensitivity = 1.06;
+    base.neuralFatigueFactor = 1.07;
+    base.heatFactor = 1.05;
+  } else if (sport.includes('basketball')) {
+    base.recoverySpeed = 1.03;
+    base.injurySensitivity = 0.97;
+    base.neuralFatigueFactor = 1.11;
+    base.heatFactor = 0.96;
+  }
+
+  const ageDelta = clamp((age - 24) * 0.01, -0.08, 0.1);
+
+  return {
+    recoverySpeed: Number(clamp(base.recoverySpeed - ageDelta, 0.82, 1.2).toFixed(2)),
+    injurySensitivity: Number(clamp(base.injurySensitivity + ageDelta * 1.1, 0.82, 1.28).toFixed(2)),
+    neuralFatigueFactor: Number(clamp(base.neuralFatigueFactor + ageDelta * 0.9, 0.82, 1.28).toFixed(2)),
+    heatFactor: Number(clamp(base.heatFactor + ageDelta * 0.8, 0.82, 1.28).toFixed(2))
+  };
+}
+
+export function upsertPlayerTwinProfile({
+  playerId,
+  recoverySpeed = 1.0,
+  injurySensitivity = 1.0,
+  neuralFatigueFactor = 1.0,
+  heatFactor = 1.0
+}) {
+  const now = nowIso();
+  getDb()
+    .prepare(
+      `INSERT INTO player_digital_twin
+      (player_id, recovery_speed, injury_sensitivity, neural_fatigue_factor, heat_factor, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(player_id) DO UPDATE SET
+        recovery_speed = excluded.recovery_speed,
+        injury_sensitivity = excluded.injury_sensitivity,
+        neural_fatigue_factor = excluded.neural_fatigue_factor,
+        heat_factor = excluded.heat_factor,
+        updated_at = excluded.updated_at`
+    )
+    .run(
+      Number(playerId),
+      Number(clamp(recoverySpeed, 0.7, 1.4).toFixed(2)),
+      Number(clamp(injurySensitivity, 0.7, 1.4).toFixed(2)),
+      Number(clamp(neuralFatigueFactor, 0.7, 1.4).toFixed(2)),
+      Number(clamp(heatFactor, 0.7, 1.4).toFixed(2)),
+      now,
+      now
+    );
+
+  return getPlayerTwinProfile(playerId);
+}
+
+export function getPlayerTwinProfile(playerId) {
+  const id = Number(playerId);
+  const existing = getDb().prepare('SELECT * FROM player_digital_twin WHERE player_id = ?').get(id);
+  if (existing) {
+    return existing;
+  }
+
+  const player = getPlayerById(id);
+  if (!player) {
+    return null;
+  }
+
+  return upsertPlayerTwinProfile({
+    playerId: id,
+    ...buildDefaultTwinProfile(player)
+  });
+}
+
+export function listPlayerTwinProfiles() {
+  return getDb()
+    .prepare(
+      `SELECT t.*, p.name AS player_name
+       FROM player_digital_twin t
+       INNER JOIN players p ON p.id = t.player_id
+       ORDER BY t.player_id ASC`
+    )
+    .all();
+}
+
+function ensureTwinProfilesForAllPlayers() {
+  listPlayers().forEach((player) => {
+    getPlayerTwinProfile(player.id);
   });
 }
 

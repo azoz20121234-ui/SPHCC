@@ -375,6 +375,7 @@ export default function App() {
             overview={overview}
             dashboard={dashboard}
             selectedMetric={selectedMetric}
+            playerProfile={playerProfile}
             fmtNum={fmtNum}
             fmtTime={fmtTime}
           />
