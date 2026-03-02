@@ -17,7 +17,7 @@ export default function TacticalDecisionCenter({ decisionData, fmtNum }) {
 
       <article className="decision-hero">
         <h3>{decision.bestDecision.label}</h3>
-        <p>{decision.bestDecision.description}</p>
+        <p>{decision.aiCoachLine || decision.bestDecision.description}</p>
         <div className="decision-confidence">ثقة القرار: {fmtNum(decision.confidence)}%</div>
       </article>
 

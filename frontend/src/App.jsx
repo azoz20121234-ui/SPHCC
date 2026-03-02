@@ -3,9 +3,13 @@ import ExecutiveView from './components/ExecutiveView.jsx';
 import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
 import HeatMapComponent from './components/HeatMapComponent.jsx';
 import CountdownToBreakdown from './components/CountdownToBreakdown.jsx';
+import TimelineProjection from './components/TimelineProjection.jsx';
+import MultiPlayerComparison from './components/MultiPlayerComparison.jsx';
+import SmartServicesPanel from './components/SmartServicesPanel.jsx';
 import { startTelemetry } from './engine/telemetryEngine.js';
 import { calculateRiskSnapshot } from './engine/riskEngine.js';
 import { buildFinancialExposureFromRisk, buildMatchImpactFromRisk } from './engine/impactEngine.js';
+import { generateAiDecision } from './engine/aiEngine.js';
 
 const MODES = {
   executive: 'تنفيذي',
@@ -42,62 +46,6 @@ function compareLabel(list, key) {
 
 function clamp(value, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
-}
-
-function buildDecision(metric) {
-  const confidence = metric.overallRisk >= 70 ? 82 : metric.overallRisk >= 55 ? 68 : 91;
-  const bestDecision =
-    metric.overallRisk >= 70
-      ? {
-          key: 'substitute_now',
-          label: 'تبديل وقائي فوري',
-          description: 'تسارع المخاطر تجاوز حد الأمان ويحتاج تدخل فوري.'
-        }
-      : metric.overallRisk >= 55
-        ? {
-            key: 'monitor_3m',
-            label: 'مراقبة دقيقة 3 دقائق',
-            description: 'المخاطر متوسطة ويجب إعادة التقييم السريع قبل التصعيد.'
-          }
-        : {
-            key: 'safe_continue',
-            label: 'استمرار آمن',
-            description: 'اللاعب ضمن نطاق آمن مع متابعة مستمرة.'
-          };
-
-  return {
-    bestDecision,
-    confidence,
-    projectedRiskImpact: {
-      reduction: Number(clamp(95 - metric.overallRisk, 4, 32).toFixed(1)),
-      nextRisk: Number(clamp(metric.overallRisk - 14, 0, 100).toFixed(1))
-    },
-    projectedWinImpact: {
-      delta: Number((metric.overallRisk >= 70 ? -4.2 : 1.6).toFixed(1)),
-      winProbabilityNow: Number(clamp(68 - metric.overallRisk * 0.42, 10, 90).toFixed(1)),
-      winProbabilityAfterDecision: Number(clamp(69 - metric.overallRisk * 0.32, 10, 92).toFixed(1))
-    },
-    candidates: [
-      {
-        key: 'substitute_now',
-        label: 'تبديل فوري',
-        description: 'خفض المخاطر فورًا على حساب ضغط تكتيكي لحظي.',
-        suitability: Number(clamp(metric.overallRisk + 10, 0, 100).toFixed(1))
-      },
-      {
-        key: 'reduce_intensity',
-        label: 'خفض الشدة',
-        description: 'تقليل التسارع مع بقاء اللاعب داخل الملعب.',
-        suitability: Number(clamp(84 - metric.overallRisk * 0.4, 0, 100).toFixed(1))
-      },
-      {
-        key: 'continue_monitor',
-        label: 'استمرار مع مراقبة',
-        description: 'الاستمرار تحت مراقبة لحظية كل 60 ثانية.',
-        suitability: Number(clamp(76 - metric.overallRisk * 0.5, 0, 100).toFixed(1))
-      }
-    ]
-  };
 }
 
 function buildSeasonForecast(metric) {
@@ -255,6 +203,16 @@ export default function App() {
   }, [interventions, selectedPlayerId]);
 
   const selectedMetric = filteredMetrics[0] || null;
+  const latestMetricsMap = useMemo(() => {
+    const map = new Map();
+    metrics.forEach((metric) => {
+      if (!map.has(metric.playerId)) {
+        map.set(metric.playerId, metric);
+      }
+    });
+    return map;
+  }, [metrics]);
+
   const selectedPlayer = useMemo(() => {
     if (selectedPlayerId === 'all') {
       return players[0];
@@ -421,8 +379,8 @@ export default function App() {
           setAlerts((prev) => [alertPayload, ...prev].slice(0, 80));
         }
 
-        const decision = buildDecision(metric);
         const impact = buildMatchImpactFromRisk(metric.overallRisk);
+        const decision = generateAiDecision(metric, impact);
         const exposure = buildFinancialExposureFromRisk(metric.overallRisk);
         const season = buildSeasonForecast(metric);
 
@@ -617,6 +575,9 @@ export default function App() {
                 ))}
               </ul>
             </section>
+
+            <MultiPlayerComparison players={players} latestMetricsMap={latestMetricsMap} fmtNum={fmtNum} />
+            <SmartServicesPanel selectedMetric={selectedMetric} />
           </>
         )}
 
@@ -628,6 +589,7 @@ export default function App() {
               decisionData={decisionCenter}
               matchImpact={matchImpact}
             />
+            <TimelineProjection selectedMetric={selectedMetric} />
             <HeatMapComponent selectedMetric={selectedMetric} decisionData={decisionCenter} />
 
             <section className="panel match-impact layout-col-2">
