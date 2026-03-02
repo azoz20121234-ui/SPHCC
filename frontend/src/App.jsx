@@ -302,22 +302,15 @@ export default function App() {
   }
 
   return (
-    <div className={`app mode-${mode}`}>
+    <div className={`app mode-${mode}`} dir="rtl">
       <header className="shell topbar">
-        <div>
-          <h1>SPHCC منصة القيادة التنبؤية الرياضية</h1>
-          <p>منصة ابتكار صحية تنافسية - تشغيل لحظي، تدخلات ذكية، ومحاكاة رقمية</p>
-        </div>
-        <div className="top-meta">
-          <span className="pill">{streamState}</span>
-          <span className="mini-pill">{actionMessage}</span>
-        </div>
-      </header>
+        <div className="topbar-main">
+          <div>
+            <h1>SPHCC منصة القيادة التنبؤية الرياضية</h1>
+            <p>منصة ابتكار صحية تنافسية - تشغيل لحظي، تدخلات ذكية، ومحاكاة رقمية</p>
+          </div>
 
-      <main className="shell main-grid">
-        <section className="panel controls">
-          <label htmlFor="mode">وضع العرض</label>
-          <div className="segmented" id="mode">
+          <div className="segmented mode-switch" id="mode">
             {Object.entries(MODES).map(([key, label]) => (
               <button
                 key={key}
@@ -329,7 +322,15 @@ export default function App() {
               </button>
             ))}
           </div>
+        </div>
+        <div className="top-meta">
+          <span className="pill">{streamState}</span>
+          <span className="mini-pill">{actionMessage}</span>
+        </div>
+      </header>
 
+      <main className="shell main-grid">
+        <section className="panel controls layout-col-1">
           <label htmlFor="player">اختيار اللاعب</label>
           <select
             id="player"
@@ -354,7 +355,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="panel stats">
+        <section className="panel stats layout-col-2">
           <article>
             <span>عدد اللاعبين</span>
             <strong>{dashboard.playersCount}</strong>
@@ -373,7 +374,7 @@ export default function App() {
           </article>
         </section>
 
-        <section className="panel gauges">
+        <section className="panel gauges layout-full">
           <h2>مؤشرات المخاطر الحية</h2>
           <div className="gauge-row">
             <div className={gaugeClass(selectedMetric?.fatigueScore || 0)}>
@@ -409,7 +410,7 @@ export default function App() {
 
         {mode === 'command' && (
           <>
-            <section className="panel table-wrap">
+            <section className="panel table-wrap layout-col-2">
               <h2>تيار القياسات المباشر</h2>
               <table>
                 <thead>
@@ -443,7 +444,7 @@ export default function App() {
               </table>
             </section>
 
-            <section className="panel">
+            <section className="panel layout-col-1">
               <h2>طابور التدخلات الطبية الذكية</h2>
               <ul className="list">
                 {filteredInterventions.map((item) => (
@@ -480,7 +481,7 @@ export default function App() {
             />
             <HeatMapComponent selectedMetric={selectedMetric} decisionData={decisionCenter} />
 
-            <section className="panel match-impact">
+            <section className="panel match-impact layout-col-2">
               <h2>تحليل تأثير المباراة</h2>
               {matchImpact ? (
                 <>
@@ -527,7 +528,7 @@ export default function App() {
               )}
             </section>
 
-            <section className="panel split tactical">
+            <section className="panel split tactical layout-col-1">
               <article>
                 <h2>مساعد القرار التكتيكي</h2>
                 <ul className="list clean">
@@ -559,7 +560,7 @@ export default function App() {
               </article>
             </section>
 
-            <section className="panel split">
+            <section className="panel split layout-col-2">
               <article>
                 <h2>مختبر السيناريوهات الرقمية</h2>
                 <form className="sim-form" onSubmit={handleStartSimulation}>
@@ -647,7 +648,7 @@ export default function App() {
               </article>
             </section>
 
-            <section className="panel">
+            <section className="panel layout-full">
               <h2>مقارنة أثر السيناريوهات</h2>
               <ul className="list clean three bars">
                 {simulationCompare.byScenario.map((row) => (
@@ -672,7 +673,7 @@ export default function App() {
 
         {mode === 'season' && (
           <>
-            <section className="panel split season-summary">
+            <section className="panel split season-summary layout-col-2">
               <article>
                 <h2>ملخص توقع الموسم</h2>
                 {seasonForecast ? (
@@ -716,7 +717,7 @@ export default function App() {
               </article>
             </section>
 
-            <section className="panel table-wrap">
+            <section className="panel table-wrap layout-full">
               <h2>توقع 20 مباراة</h2>
               <table>
                 <thead>
@@ -744,7 +745,7 @@ export default function App() {
           </>
         )}
 
-        <section className="panel alerts">
+        <section className="panel alerts layout-full">
           <h2>لوحة التنبيهات</h2>
           <ul className="list">
             {filteredAlerts.slice(0, 40).map((alert) => (

@@ -1,53 +1,43 @@
-:root {
-  --bg: #f5f7fa;
-  --card: rgba(255, 255, 255, 0.92);
-  --card-solid: #ffffff;
-  --line: rgba(0, 0, 0, 0.06);
-  --text: #1d1d1f;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  --radius: 20px;
-}
-
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background:
-    radial-gradient(1000px 380px at 8% -10%, rgba(37, 99, 235, 0.08) 0%, transparent 65%),
-    radial-gradient(900px 340px at 95% -8%, rgba(30, 64, 175, 0.07) 0%, transparent 65%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-family: var(--apple-font-family);
+  direction: rtl;
 }
 
 .shell {
-  width: min(1200px, 92%);
+  width: min(1360px, 92%);
   margin-inline: auto;
 }
 
 .topbar {
-  margin-top: 18px;
-  margin-bottom: 16px;
-  padding: 26px;
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: saturate(180%) blur(18px);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  background: var(--card);
   box-shadow: var(--shadow);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--space-3);
+}
+
+.topbar-main {
+  display: grid;
+  gap: var(--space-2);
+  align-items: start;
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: clamp(2rem, 3vw, 2.5rem);
+  font-size: var(--apple-font-size-title);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -60,7 +50,7 @@ body {
 
 .top-meta {
   display: grid;
-  gap: 8px;
+  gap: var(--space-1);
   justify-items: end;
 }
 
@@ -76,9 +66,9 @@ body {
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .panel,
@@ -87,23 +77,26 @@ body {
   border: 1px solid var(--line);
   background: var(--card);
   box-shadow: var(--shadow);
-  padding: 24px;
+  padding: var(--space-3);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  backdrop-filter: saturate(160%) blur(10px);
-  -webkit-backdrop-filter: saturate(160%) blur(10px);
 }
 
 .panel:hover,
 .card:hover {
   transform: translateY(-4px);
+  box-shadow: var(--apple-shadow-lift);
 }
 
-.controls,
-.stats,
-.gauges,
-.alerts,
-.executive-premium {
+.layout-col-1 {
+  grid-column: span 1;
+}
+
+.layout-col-2 {
   grid-column: span 2;
+}
+
+.layout-full {
+  grid-column: 1 / -1;
 }
 
 .controls label {
@@ -114,12 +107,16 @@ body {
 }
 
 .segmented {
-  background: #eef1f5;
+  background: #eef2f6;
   border-radius: 999px;
   padding: 4px;
   display: inline-flex;
   gap: 4px;
-  margin-bottom: 12px;
+  width: fit-content;
+}
+
+.mode-switch {
+  margin-top: var(--space-1);
 }
 
 .segmented button {
@@ -136,7 +133,7 @@ body {
 .segmented button.active {
   background: #ffffff;
   color: var(--accent);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.1);
 }
 
 select,
@@ -157,7 +154,7 @@ input {
 
 button {
   border: 0;
-  background: linear-gradient(180deg, #3b82f6 0%, var(--accent) 100%);
+  background: var(--accent);
   color: #fff;
   border-radius: 12px;
   padding: 10px 14px;
@@ -173,8 +170,8 @@ button {
 
 .stats {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .stats article {
@@ -341,6 +338,7 @@ th {
 }
 
 .tactical-decision {
+  grid-column: span 2;
   display: grid;
   gap: 12px;
 }
@@ -416,7 +414,7 @@ th {
 }
 
 .bar-fill.continue {
-  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+  background: #2563eb;
 }
 
 .match-impact .curve-list li {
@@ -428,11 +426,13 @@ th {
 }
 
 .heatmap-panel {
+  grid-column: 1 / -1;
   display: grid;
   gap: 12px;
 }
 
 .breakdown-panel {
+  grid-column: span 1;
   display: grid;
   gap: 12px;
 }
@@ -534,7 +534,7 @@ th {
   border-radius: 18px;
   border: 1px solid var(--line);
   padding: 10px;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: #f8fafc;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 8px;
@@ -586,6 +586,10 @@ th {
 
 .season-summary .list.clean li {
   min-height: 52px;
+}
+
+.executive-premium {
+  grid-column: 1 / -1;
 }
 
 .alerts li {
@@ -822,21 +826,34 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .controls,
-  .stats,
-  .gauges,
-  .alerts,
-  .executive-premium {
-    grid-column: span 1;
+  .layout-col-1,
+  .layout-col-2,
+  .layout-full,
+  .executive-premium,
+  .tactical-decision,
+  .breakdown-panel,
+  .heatmap-panel {
+    grid-column: 1 / -1;
   }
 
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+    padding: var(--space-3);
+  }
+
+  .topbar-main {
+    width: 100%;
   }
 
   .top-meta {
     justify-items: start;
+  }
+
+  .mode-switch {
+    overflow-x: auto;
+    max-width: 100%;
+    width: 100%;
   }
 
   .exec-hero {
