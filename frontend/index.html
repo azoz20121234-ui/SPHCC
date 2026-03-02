@@ -3,47 +3,98 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SPHCC Dashboard</title>
+    <title>SPHCC Live Predictive Dashboard</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header>
-      <h1>SPHCC</h1>
-      <p>Smart Sports Physical Health Care Clinic</p>
+    <div class="noise"></div>
+    <div class="glow glow-a"></div>
+    <div class="glow glow-b"></div>
+
+    <header class="topbar">
+      <div>
+        <h1>SPHCC Command Center</h1>
+        <p>Live predictive monitoring for match sessions</p>
+      </div>
+      <div class="status-wrap">
+        <span id="liveStatus" class="status-pill">Stream: connecting</span>
+      </div>
     </header>
 
-    <main>
-      <section class="card">
-        <h2>Add Athlete</h2>
-        <form id="athleteForm">
-          <input type="text" id="name" placeholder="Athlete name" required />
-          <input type="text" id="sport" placeholder="Sport" required />
-          <input type="number" id="age" placeholder="Age" min="8" required />
-          <button type="submit">Add Athlete</button>
-        </form>
+    <main class="dashboard-grid">
+      <section class="panel controls-panel">
+        <h2>Player Control</h2>
+        <label for="playerSelect">Select Player</label>
+        <select id="playerSelect"></select>
+        <button id="refreshBtn" type="button">Refresh Snapshot</button>
       </section>
 
-      <section class="card">
-        <h2>Athletes</h2>
-        <ul id="athletesList"></ul>
+      <section class="panel gauges-panel">
+        <h2>Live Risk Gauges</h2>
+        <div class="gauge-grid">
+          <article class="gauge-card">
+            <div id="fatigueGauge" class="gauge"></div>
+            <h3>Fatigue Score</h3>
+            <strong id="fatigueValue">0</strong>
+          </article>
+          <article class="gauge-card">
+            <div id="injuryGauge" class="gauge"></div>
+            <h3>Injury Risk</h3>
+            <strong id="injuryValue">0</strong>
+          </article>
+          <article class="gauge-card">
+            <div id="hydrationGauge" class="gauge"></div>
+            <h3>Hydration Risk</h3>
+            <strong id="hydrationValue">0</strong>
+          </article>
+          <article class="gauge-card overall">
+            <div id="overallGauge" class="gauge"></div>
+            <h3>Overall Risk</h3>
+            <strong id="overallValue">0</strong>
+          </article>
+        </div>
       </section>
 
-      <section class="card">
-        <h2>Schedule Appointment</h2>
-        <form id="appointmentForm">
-          <select id="athleteId" required></select>
-          <input type="datetime-local" id="date" required />
-          <textarea id="notes" placeholder="Session notes"></textarea>
-          <button type="submit">Create Appointment</button>
-        </form>
+      <section class="panel telemetry-panel">
+        <h2>Latest Telemetry</h2>
+        <div class="telemetry-grid" id="telemetryGrid">
+          <div class="kv"><span>Player</span><strong id="tPlayer">-</strong></div>
+          <div class="kv"><span>Heart Rate</span><strong id="tHeart">-</strong></div>
+          <div class="kv"><span>Acceleration</span><strong id="tAcceleration">-</strong></div>
+          <div class="kv"><span>Temperature</span><strong id="tTemperature">-</strong></div>
+          <div class="kv"><span>Sleep Hours</span><strong id="tSleep">-</strong></div>
+          <div class="kv"><span>Updated</span><strong id="tUpdated">-</strong></div>
+        </div>
       </section>
 
-      <section class="card">
-        <h2>Appointments</h2>
-        <ul id="appointmentsList"></ul>
+      <section class="panel alerts-panel">
+        <h2>Alert Panel</h2>
+        <ul id="alertsList" class="alerts-list"></ul>
+      </section>
+
+      <section class="panel metrics-panel">
+        <h2>Recent Metrics</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Player</th>
+                <th>HR</th>
+                <th>ACC</th>
+                <th>TEMP</th>
+                <th>Fatigue</th>
+                <th>Injury</th>
+                <th>Hydration</th>
+                <th>Overall</th>
+              </tr>
+            </thead>
+            <tbody id="metricsBody"></tbody>
+          </table>
+        </div>
       </section>
     </main>
 
-    <script src="./app.js" type="module"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
