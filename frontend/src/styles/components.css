@@ -298,6 +298,64 @@
   gap: 8px;
 }
 
+.season-curve {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.season-curve svg {
+  width: 100%;
+  height: auto;
+}
+
+.season-curve-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.season-injury-map {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.injury-cell {
+  border-radius: 12px;
+  padding: 10px 8px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  background: #f3f4f6;
+}
+
+.injury-cell span {
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+
+.injury-cell strong {
+  font-size: .92rem;
+}
+
+.injury-cell.low {
+  color: #166534;
+}
+
+.injury-cell.medium {
+  color: #b45309;
+}
+
+.injury-cell.high {
+  color: #c2410c;
+}
+
+.injury-cell.critical {
+  color: #b91c1c;
+}
+
 @media (max-width: 1024px) {
   .timeline-header {
     flex-direction: column;
@@ -314,5 +372,9 @@
 
   .comparison-table {
     font-size: .9rem;
+  }
+
+  .season-injury-map {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

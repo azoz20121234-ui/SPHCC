@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import SeasonFatigueCurve from '../components/SeasonFatigueCurve.jsx';
+import SeasonInjuryMap from '../components/SeasonInjuryMap.jsx';
 import { useSimulation } from '../utils/SimulationContext.jsx';
 
 function round(value, digits = 1) {
@@ -68,6 +70,7 @@ export default function SeasonForecast() {
               <li key={item.match}>مباراة {item.match}: إجهاد {item.fatigue}%</li>
             ))}
           </ul>
+          <SeasonFatigueCurve games={season.games} />
         </article>
 
         <article className="card">
@@ -81,6 +84,7 @@ export default function SeasonForecast() {
             <strong>{Math.max(...season.games.map((item) => item.injuryProbability))}%</strong>
           </div>
           <p className="muted">ترتفع المخاطر تدريجيًا مع تراكم الحمل في النصف الثاني من الموسم.</p>
+          <SeasonInjuryMap games={season.games} />
         </article>
 
         <article className="card">
