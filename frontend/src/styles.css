@@ -305,7 +305,8 @@ th {
 .intervention-item p,
 .exec-summary p,
 .financial-panel p,
-.alerts li span {
+.alerts li span,
+.muted {
   color: var(--muted);
 }
 
@@ -331,6 +332,67 @@ th {
 
 .bars li {
   position: relative;
+}
+
+.tactical-decision {
+  display: grid;
+  gap: 12px;
+}
+
+.decision-hero {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.decision-hero h3 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+
+.decision-hero p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.decision-confidence {
+  margin-top: 12px;
+  display: inline-block;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.decision-impact-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.decision-impact-grid article {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.decision-impact-grid span,
+.decision-impact-grid small {
+  display: block;
+  color: var(--muted);
+}
+
+.decision-impact-grid strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 1.45rem;
+}
+
+.candidate-score {
+  text-align: left;
 }
 
 .bar-track {
@@ -522,7 +584,8 @@ th {
   .split,
   .exec-kpi-grid,
   .exec-panels,
-  .list.three {
+  .list.three,
+  .decision-impact-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ExecutiveView from './components/ExecutiveView.jsx';
+import TacticalDecisionCenter from './components/TacticalDecisionCenter.jsx';
 
 const queryApiRoot = new URLSearchParams(window.location.search).get('api');
 if (queryApiRoot) {
@@ -63,6 +64,7 @@ export default function App() {
   });
 
   const [playerProfile, setPlayerProfile] = useState(null);
+  const [decisionCenter, setDecisionCenter] = useState(null);
   const [simulationCompare, setSimulationCompare] = useState({ sessions: [], byScenario: [] });
   const [activeSimulations, setActiveSimulations] = useState([]);
   const [scenarios, setScenarios] = useState([]);
@@ -126,17 +128,20 @@ export default function App() {
   async function loadPlayerDepth(playerId) {
     if (playerId === 'all') {
       setPlayerProfile(null);
+      setDecisionCenter(null);
       setSimulationCompare({ sessions: [], byScenario: [] });
       return;
     }
 
-    const [profileData, compareData] = await Promise.all([
+    const [profileData, compareData, decisionData] = await Promise.all([
       request(`/api/players/${playerId}/profile`),
-      request(`/api/simulation/compare?playerId=${playerId}`)
+      request(`/api/simulation/compare?playerId=${playerId}`),
+      request(`/api/decision/now?playerId=${playerId}`)
     ]);
 
     setPlayerProfile(profileData);
     setSimulationCompare(compareData);
+    setDecisionCenter(decisionData);
   }
 
   async function loadActiveSimulations() {
@@ -440,6 +445,8 @@ export default function App() {
 
         {mode === 'tactical' && (
           <>
+            <TacticalDecisionCenter decisionData={decisionCenter} fmtNum={fmtNum} />
+
             <section className="panel split tactical">
               <article>
                 <h2>مساعد القرار التكتيكي</h2>
