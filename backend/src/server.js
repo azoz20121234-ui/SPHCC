@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   completeSimulationSession,
   createAlert,
@@ -25,6 +27,10 @@ const ALERT_THRESHOLD = Number(process.env.ALERT_THRESHOLD || 65);
 
 app.use(cors());
 app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDir = path.join(__dirname, '..', '..', 'frontend');
 
 const liveClients = new Set();
 const fatigueState = new Map();
@@ -341,6 +347,12 @@ app.get('/live', (req, res) => {
   req.on('close', () => {
     liveClients.delete(res);
   });
+});
+
+app.use(express.static(frontendDir));
+
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(frontendDir, 'index.html'));
 });
 
 app.listen(port, () => {

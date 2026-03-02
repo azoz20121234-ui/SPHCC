@@ -2,7 +2,7 @@ const queryApiRoot = new URLSearchParams(window.location.search).get('api');
 if (queryApiRoot) {
   localStorage.setItem('sphcc_api_root', queryApiRoot);
 }
-const API_ROOT = queryApiRoot || localStorage.getItem('sphcc_api_root') || 'http://localhost:4000';
+const API_ROOT = queryApiRoot || localStorage.getItem('sphcc_api_root') || window.location.origin;
 
 const playerSelect = document.getElementById('playerSelect');
 const refreshBtn = document.getElementById('refreshBtn');
